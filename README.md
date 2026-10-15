@@ -38,10 +38,6 @@ Set `VITE_API_URL` at frontend build time if the API is hosted somewhere other t
 
 Back up with `mysqldump --single-transaction -u rakki_app -p rakki > rakki-backup.sql`; restore to the intended database with `mysql -u rakki_app -p rakki < rakki-backup.sql`. Back up uploaded image files at the same time. Alembic migration downgrade is intentionally non-destructive and does not drop production tables.
 
-## Security and limitations
-
-The current app is intended for local development or a trusted internal network. Authentication/authorization and production rate limiting are not implemented; do not expose it publicly until they are added. Configure CORS narrowly. The API validates decoded image formats and size, uses random storage filenames and parameterized SQLAlchemy queries, and escapes spreadsheet formula-leading text. The AI integration keeps keys server-side and does not log them. Configure Gemini model and credentials in backend environment only. No exact textile composition, origin, certification, lifespan, carbon value, or RAPU score is inferred from an image. RAPU methodology is an outstanding domain decision. Carbon methodology/factors and evidence are also required before calculation can be enabled.
-
 ## Tests and migrations
 
 Install backend requirements and run `pytest` from `backend`. Migrations are in `backend/alembic`; run `alembic upgrade head` against a dedicated empty test database for migration validation, never against a valuable database without a verified backup. Frontend production build: `npm run build` from `frontend`.
