@@ -1,9 +1,307 @@
-import {useEffect,useState} from 'react';
-type Row={product:{id:number;name:string;brand?:string;category?:string;ai_status:string;assessment_status:string};materials:{name:string;percentage?:number;verification:string}[]};
-const API=import.meta.env.VITE_API_URL||'http://localhost:8000/api';
-export default function App(){const [rows,setRows]=useState<Row[]>([]),[q,setQ]=useState(''),[name,setName]=useState(''),[selected,setSelected]=useState<Row|null>(null),[file,setFile]=useState<File|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
-async function load(){try{const r=await fetch(`${API}/products?q=${encodeURIComponent(q)}`);if(!r.ok)throw Error('API unavailable; start the backend and configure MySQL.');setRows(await r.json());setError('')}catch(e){setError(String(e))}}
-useEffect(()=>{load()},[q]);
-async function create(){setBusy(true);try{const r=await fetch(`${API}/products`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});if(!r.ok)throw Error('Could not create product');const p=await r.json();if(file){const fd=new FormData();fd.append('file',file);const up=await fetch(`${API}/products/${p.id}/images`,{method:'POST',body:fd});if(!up.ok)throw Error((await up.json()).detail||'Upload failed');}setName('');setFile(null);await load();setSelected({product:p,materials:[]})}catch(e){setError(String(e))}finally{setBusy(false)}}
-async function analyze(id:number){setBusy(true);try{const r=await fetch(`${API}/products/${id}/analyze`,{method:'POST'});const d=await r.json();if(!r.ok)throw Error(d.detail);await load();setError('Analysis complete. Image observations remain unverified.')}catch(e){setError(String(e))}finally{setBusy(false)}}
-return <main><header><div className="brand">RAKKI<span> / PRODUCT INTELLIGENCE</span></div><a href={`${API}/export.xlsx`}>Export Excel ↓</a></header><section className="intro"><p className="eyebrow">MATERIALS · EVIDENCE · IMPACT</p><h1>Know what your<br/><i>products are made of.</i></h1><p className="sub">A product assessment workspace with transparent evidence and careful AI assistance.</p></section><section className="create"><div><label>NEW PRODUCT</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Product name"/><input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setFile(e.target.files?.[0]||null)}/></div><button disabled={!name||busy} onClick={create}>{busy?'Working…':'Create product →'}</button></section><section className="listHead"><div><label>YOUR CATALOG</label><h2>Products <small>{rows.length.toString().padStart(2,'0')}</small></h2></div><input className="search" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search name, brand, SKU…"/></section>{error&&<p className="notice">{error}</p>}<div className="grid">{rows.map(row=><article key={row.product.id} onClick={()=>setSelected(row)}><div className="tile"><span>{row.product.category||'PRODUCT'}</span><b>↗</b><strong>{row.product.name}</strong></div><div className="row"><span>{row.product.brand||'Brand not recorded'}</span><span className="pill">{row.product.ai_status}</span></div></article>)}</div>{rows.length===0&&!error&&<p className="empty">Your catalog is ready. Add a product to begin.</p>}{selected&&<div className="overlay" onClick={()=>setSelected(null)}><section className="panel" onClick={e=>e.stopPropagation()}><button className="close" onClick={()=>setSelected(null)}>×</button><label>PRODUCT SHEET · #{selected.product.id}</label><h2>{selected.product.name}</h2><p>{selected.product.brand||'Brand unknown'} · {selected.product.category||'Category unknown'}</p><p className="tag">AI status: {selected.product.ai_status} · AI results are unverified</p><h3>Materials</h3>{selected.materials.length?selected.materials.map(m=><p key={m.name}>{m.name} · {m.percentage??'Unknown'}% · {m.verification}</p>):<p>No composition evidence recorded.</p>}<button onClick={()=>analyze(selected.product.id)}>Analyze latest image</button><button className="secondary" onClick={async()=>{await fetch(`${API}/products/${selected.product.id}/assessments`,{method:'POST'});setError('Assessment saved: carbon needs method and data; RAPU awaits authoritative methodology.')}}>Assess sustainability</button></section></div>}</main>}
+import { FormEvent, useEffect, useRef, useState } from 'react';
+
+type Product = { id: number; name: string; product_name?: string; category: string | null; location: string | null; completion_date: string; overall_condition: number | null; is_intact: boolean | null; is_clean: boolean | null; quantity: number; additional_notes: string | null; subtype: string | null; brand: string | null; sku: string | null; color: string | null; description: string | null; condition: string | null; ai_status: string; assessment_status: string; field_provenance?: Record<string, string>; field_verification?: Record<string, string> };
+type ImageRow = { id: number; filename: string; content_type: string; is_primary: boolean; url: string };
+type Material = { id?: number; name: string; percentage: number | null; verification: string };
+type Row = { product: Product; materials: Material[]; images: ImageRow[] };
+type FormValues = { name: string; category: string; location: string; overall_condition: string; is_intact: string; is_clean: string; quantity: string; additional_notes: string; subtype: string; brand: string; sku: string; color: string; description: string; condition: string };
+type InventoryDraft = Pick<FormValues, 'name' | 'category' | 'location' | 'overall_condition' | 'is_intact' | 'is_clean' | 'quantity' | 'additional_notes'>;
+const API = import.meta.env.VITE_API_URL || '/api';
+const CATEGORY_OPTIONS = ['Movable Furniture and Fixed Furnishings', 'Electrical', 'HVAC and Plumbing', 'Building Components and Materials', 'Other'];
+const CONDITION_OPTIONS = [{ value: '', label: 'Not Assessed' }, { value: '1', label: '1 - Very Poor' }, { value: '2', label: '2 - Poor' }, { value: '3', label: '3 - Fair' }, { value: '4', label: '4 - Good' }, { value: '5', label: '5 - Excellent' }];
+const ASSESSMENT_OPTIONS = [{ value: '', label: 'Not Assessed' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }];
+const emptyForm = (): FormValues => ({ name: '', category: '', location: '', overall_condition: '', is_intact: '', is_clean: '', quantity: '1', additional_notes: '', subtype: '', brand: '', sku: '', color: '', description: '', condition: '' });
+const fields: { key: keyof FormValues; label: string }[] = [
+  { key: 'name', label: 'Product name' }, { key: 'category', label: 'Category' }, { key: 'subtype', label: 'Subtype' },
+  { key: 'location', label: 'Location' }, { key: 'overall_condition', label: 'Overall condition' }, { key: 'is_intact', label: 'Product is intact' },
+  { key: 'is_clean', label: 'Product is clean' }, { key: 'quantity', label: 'Quantity' }, { key: 'additional_notes', label: 'Additional notes' },
+  { key: 'brand', label: 'Brand' }, { key: 'sku', label: 'SKU' }, { key: 'color', label: 'Color' },
+  { key: 'condition', label: 'Legacy condition' }, { key: 'description', label: 'Description' },
+];
+function errorText(data: any, fallback: string) {
+  const detail = data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (detail?.errors) return detail.errors.join('; ');
+  if (Array.isArray(detail)) return detail.map((item: any) => `${item.loc?.slice(-1)[0] || 'Field'}: ${item.msg}`).join('; ');
+  if (detail?.message) return detail.message;
+  return fallback;
+}
+const emptyInventoryDraft = (): InventoryDraft => ({ name: '', category: '', location: '', overall_condition: '', is_intact: '', is_clean: '', quantity: '1', additional_notes: '' });
+const positiveInteger = (value: string) => /^\d+$/.test(value) && Number(value) > 0;
+const boolValue = (value: string): boolean | null => value === 'true' ? true : value === 'false' ? false : null;
+const conditionLabel = (value: number | null) => CONDITION_OPTIONS.find(option => option.value === String(value ?? ''))?.label || 'Not Assessed';
+const assessedLabel = (value: boolean | null) => value === true ? 'Yes' : value === false ? 'No' : 'Not Assessed';
+const displayDate = (value: string) => {
+  const [year, month, day] = value.split('-');
+  return year && month && day ? `${day}.${month}.${year}` : value;
+};
+function inventoryPayload(draft: InventoryDraft) {
+  return {
+    name: draft.name.trim(), category: draft.category || null, location: draft.location.trim() || null,
+    overall_condition: draft.overall_condition ? Number(draft.overall_condition) : null,
+    is_intact: boolValue(draft.is_intact), is_clean: boolValue(draft.is_clean), quantity: Number(draft.quantity),
+    additional_notes: draft.additional_notes.trim() || null,
+  };
+}
+
+export default function App() {
+  const [rows, setRows] = useState<Row[]>([]), [q, setQ] = useState(''), [status, setStatus] = useState('');
+  const [tab, setTab] = useState<'catalog' | 'inventory'>('catalog'), [page, setPage] = useState(0), [totalCount, setTotalCount] = useState(0), [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<Row | null>(null), [form, setForm] = useState<FormValues>(emptyForm());
+  const [createDraft, setCreateDraft] = useState<InventoryDraft>(emptyInventoryDraft()), [createFiles, setCreateFiles] = useState<File[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]), [analysisImage, setAnalysisImage] = useState<number | ''>('');
+  const [createPreviews, setCreatePreviews] = useState<string[]>([]), [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false), [analysisBusy, setAnalysisBusy] = useState(false), [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(''), [error, setError] = useState('');
+  const [inventoryAdding, setInventoryAdding] = useState(false), [inventoryEditingId, setInventoryEditingId] = useState<number | null>(null), [inventoryDraft, setInventoryDraft] = useState<InventoryDraft>(emptyInventoryDraft()), [inventorySaving, setInventorySaving] = useState(false);
+  const [suggested, setSuggested] = useState<Set<keyof FormValues>>(new Set());
+  const formRef = useRef(form), touchedRef = useRef(new Set<keyof FormValues>());
+
+  async function load() {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (status) params.set('status', status);
+      params.set('limit', '50'); params.set('offset', String(page * 50));
+      const response = await fetch(`${API}/products?${params}`);
+      if (!response.ok) throw new Error('API unavailable; start the backend and configure MySQL.');
+      setRows(await response.json()); setTotalCount(Number(response.headers.get('X-Total-Count') || '0')); setError('');
+    } catch (err) { setError(String(err)); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => { void load(); }, [q, status, page]);
+  useEffect(() => {
+    const urls = createFiles.map(file => URL.createObjectURL(file)); setCreatePreviews(urls);
+    return () => urls.forEach(url => URL.revokeObjectURL(url));
+  }, [createFiles]);
+  useEffect(() => {
+    const urls = pendingFiles.map(file => URL.createObjectURL(file)); setPendingPreviews(urls);
+    return () => urls.forEach(url => URL.revokeObjectURL(url));
+  }, [pendingFiles]);
+  async function loadDetail(id: number) {
+    const response = await fetch(`${API}/products/${id}`);
+    if (!response.ok) throw new Error('Could not load product details');
+    const detail: Row = await response.json();
+    const values: FormValues = {
+      name: detail.product.name || '', category: detail.product.category || '', location: detail.product.location || '',
+      overall_condition: detail.product.overall_condition == null ? '' : String(detail.product.overall_condition),
+      is_intact: detail.product.is_intact == null ? '' : String(detail.product.is_intact),
+      is_clean: detail.product.is_clean == null ? '' : String(detail.product.is_clean),
+      quantity: String(detail.product.quantity ?? 1), additional_notes: detail.product.additional_notes || '',
+      subtype: detail.product.subtype || '', brand: detail.product.brand || '', sku: detail.product.sku || '', color: detail.product.color || '',
+      description: detail.product.description || '', condition: detail.product.condition || '',
+    };
+    const cleanTouched = new Set<keyof FormValues>();
+    setSelected(detail); formRef.current = values; setForm(values);
+    touchedRef.current = cleanTouched; setSuggested(new Set()); setAnalysisImage(detail.images.find(i => i.is_primary)?.id ?? detail.images[0]?.id ?? '');
+  }
+  function applySuggestions(data: Record<string, unknown>) {
+    const current = formRef.current;
+    const next = { ...current };
+    const newlySuggested = new Set<keyof FormValues>();
+    for (const { key } of fields) {
+      const value = data[key];
+      const previouslyVerified = selected?.product.field_verification?.[key] === 'verified';
+      if (typeof value === 'string' && !previouslyVerified && !touchedRef.current.has(key) && !String(current[key] || '').trim() && value.trim()) {
+        next[key] = value; newlySuggested.add(key);
+      }
+    }
+    formRef.current = next; setForm(next); setSuggested(newlySuggested);
+    setMessage('AI suggestions added to blank fields. Review and save them to update the product. Suggestions are unverified.');
+  }
+  async function analyze(id: number, imageId?: number) {
+    setAnalysisBusy(true); setError(''); setMessage('Analyzing image…');
+    try {
+      const suffix = imageId ? `?image_id=${imageId}` : '';
+      const current = formRef.current;
+      const context = { product_name: current.name, category: current.category, location: current.location, additional_notes: current.additional_notes };
+      const response = await fetch(`${API}/products/${id}/analyze${suffix}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(context) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(errorText(result, 'Image analysis failed. Your image and product data are still saved.'));
+      applySuggestions({ name: result.data?.product_name, category: result.data?.category, additional_notes: result.data?.additional_notes });
+      setSelected(current => current ? { ...current, product: { ...current.product, ai_status: 'completed' } } : current);
+      await load();
+    } catch (err) { setError(`${String(err)} The uploaded image and entered information are preserved. You can retry analysis.`); setMessage(''); }
+    finally { setAnalysisBusy(false); }
+  }
+  async function uploadFiles(id: number, files: File[]) {
+    if (!files.length) return [] as ImageRow[];
+    const body = new FormData(); files.forEach(item => body.append('files', item));
+    const response = await fetch(`${API}/products/${id}/images`, { method: 'POST', body });
+    const result = await response.json();
+    if (!response.ok) throw new Error(errorText(result, 'Image upload failed'));
+    if (result.errors?.length) setError(`Some images could not be uploaded: ${result.errors.join('; ')}`);
+    return result.uploaded as ImageRow[];
+  }
+  async function create(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError(''); setMessage('');
+    try {
+      if (!positiveInteger(createDraft.quantity)) throw new Error('Quantity must be a positive whole number.');
+      const response = await fetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(inventoryPayload(createDraft)) });
+      const product = await response.json();
+      if (!response.ok) throw new Error(errorText(product, 'Could not create product'));
+      setCreateDraft(emptyInventoryDraft()); setCreateFiles([]);
+      let uploaded: ImageRow[] = [];
+      if (createFiles.length) uploaded = await uploadFiles(product.id, createFiles);
+      await loadDetail(product.id); await load();
+      if (uploaded.length) await analyze(product.id, uploaded[0].id);
+    } catch (err) { setError(String(err)); await load(); }
+    finally { setBusy(false); }
+  }
+  async function save(event: FormEvent) {
+    event.preventDefault(); if (!selected) return;
+    setSaving(true); setError(''); setMessage('');
+    try {
+      if (!positiveInteger(form.quantity)) throw new Error('Quantity must be a positive whole number.');
+      const payload = { ...inventoryPayload(form), subtype: form.subtype.trim() || null, brand: form.brand.trim() || null,
+        sku: form.sku.trim() || null, color: form.color.trim() || null, description: form.description.trim() || null,
+        condition: form.condition.trim() || null };
+      const response = await fetch(`${API}/products/${selected.product.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(errorText(result, 'Could not save product changes'));
+      await loadDetail(selected.product.id); await load(); setSuggested(new Set()); setMessage('Product changes saved. AI suggestions in this form are now manually reviewed and recorded in revision history.');
+    } catch (err) { setError(String(err)); }
+    finally { setSaving(false); }
+  }
+  async function addImages() {
+    if (!selected || !pendingFiles.length) return;
+    setBusy(true); setError('');
+    try {
+      const added = await uploadFiles(selected.product.id, pendingFiles);
+      setPendingFiles([]); await loadDetail(selected.product.id); await load();
+      if (added.length) await analyze(selected.product.id, added[0].id);
+    } catch (err) { setError(String(err)); }
+    finally { setBusy(false); }
+  }
+  async function choosePrimary(image: ImageRow) {
+    if (!selected) return;
+    const response = await fetch(`${API}/products/${selected.product.id}/images/${image.id}/primary`, { method: 'POST' });
+    if (!response.ok) { setError('Could not select the primary image'); return; }
+    await loadDetail(selected.product.id); await load();
+  }
+  async function removeImage(image: ImageRow) {
+    if (!selected || !window.confirm('Remove this image from the product?')) return;
+    const response = await fetch(`${API}/products/${selected.product.id}/images/${image.id}`, { method: 'DELETE' });
+    if (!response.ok) { setError('Could not delete image'); return; }
+    await loadDetail(selected.product.id); await load();
+  }
+  async function removeProduct(product: Product) {
+    if (!window.confirm(`Delete “${product.name}” and all its images, assessments, and revision history? This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`${API}/products/${product.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error(errorText(await response.json(), 'Could not delete product'));
+      if (selected?.product.id === product.id) setSelected(null);
+      setMessage('Product deleted.'); await load();
+    } catch (err) { setError(String(err)); }
+    finally { setBusy(false); }
+  }
+  function editInventory(row: Row) {
+    const product = row.product;
+    setInventoryDraft({ name: product.name || '', category: product.category || '', location: product.location || '',
+      overall_condition: product.overall_condition == null ? '' : String(product.overall_condition),
+      is_intact: product.is_intact == null ? '' : String(product.is_intact), is_clean: product.is_clean == null ? '' : String(product.is_clean),
+      quantity: String(product.quantity ?? 1), additional_notes: product.additional_notes || '' });
+    setInventoryAdding(false); setInventoryEditingId(product.id);
+  }
+  async function saveInventory() {
+    if (!positiveInteger(inventoryDraft.quantity)) { setError('Quantity must be a positive whole number.'); return; }
+    setInventorySaving(true); setError(''); setMessage('');
+    try {
+      const url = inventoryAdding ? `${API}/products` : `${API}/products/${inventoryEditingId}`;
+      const response = await fetch(url, { method: inventoryAdding ? 'POST' : 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(inventoryPayload(inventoryDraft)) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(errorText(result, 'Could not save inventory item'));
+      setInventoryAdding(false); setInventoryEditingId(null); setMessage(inventoryAdding ? 'Inventory item created.' : 'Inventory item updated.'); await load();
+    } catch (err) { setError(String(err)); }
+    finally { setInventorySaving(false); }
+  }
+  function cancelInventoryEdit() { setInventoryAdding(false); setInventoryEditingId(null); setInventoryDraft(emptyInventoryDraft()); }
+  function updateCreateDraft(key: keyof InventoryDraft, value: string) { setCreateDraft(current => ({ ...current, [key]: value })); }
+  function updateField(key: keyof FormValues, value: string) {
+    touchedRef.current = new Set(touchedRef.current).add(key);
+    setSuggested(current => { const next = new Set(current); next.delete(key); return next; });
+    const nextForm = { ...formRef.current, [key]: value }; formRef.current = nextForm; setForm(nextForm);
+  }
+  function filePicker(files: FileList | null, setter: (value: File[]) => void) { setter(Array.from(files || [])); }
+  function editInput(key: keyof FormValues) {
+    const onChange = (value: string) => updateField(key, value);
+    if (key === 'category') return <select value={form.category} onChange={e => onChange(e.target.value)}><option value="">Choose category</option>{form.category && !CATEGORY_OPTIONS.includes(form.category) && <option value={form.category}>{form.category} (legacy)</option>}{CATEGORY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select>;
+    if (key === 'overall_condition') return <select value={form.overall_condition} onChange={e => onChange(e.target.value)}>{CONDITION_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
+    if (key === 'is_intact' || key === 'is_clean') return <select value={form[key]} onChange={e => onChange(e.target.value)}>{ASSESSMENT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
+    if (key === 'quantity') return <input type="number" min="1" step="1" value={form.quantity} onChange={e => onChange(e.target.value)}/>;
+    if (key === 'description' || key === 'additional_notes') return <textarea value={form[key] || ''} onChange={e => onChange(e.target.value)} rows={3}/>;
+    return <input value={form[key] || ''} onChange={e => onChange(e.target.value)}/>;
+  }
+
+  return <main>
+    <header><div className="brand">RAKKI<span> / PRODUCT INTELLIGENCE</span></div><nav className="tabs"><button className={tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}>Catalog</button><button className={tab === 'inventory' ? 'active' : ''} onClick={() => setTab('inventory')}>Inventory</button></nav><a href={`${API}/export.xlsx`}>Export Excel ↓</a></header>
+    {error && <p className="notice error-notice">{error}</p>}{message && <p className="notice">{message}</p>}
+    {tab === 'catalog' && <>
+      <section className="intro"><p className="eyebrow">MATERIALS · EVIDENCE · IMPACT</p><h1>Know what your<br/><i>products are made of.</i></h1><p className="sub">A product assessment workspace with transparent evidence and careful AI assistance.</p></section>
+      <form className="create inventory-create" onSubmit={create}>
+        <div className="create-fields">
+          <label className="field"><span>Location</span><input value={createDraft.location} onChange={e => updateCreateDraft('location', e.target.value)} placeholder="Room, area, or building"/></label>
+          <label className="field"><span>Category</span><select value={createDraft.category} onChange={e => updateCreateDraft('category', e.target.value)}><option value="">Choose category</option>{CATEGORY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select></label>
+          <label className="field"><span>Overall condition</span><select value={createDraft.overall_condition} onChange={e => updateCreateDraft('overall_condition', e.target.value)}>{CONDITION_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <label className="field"><span>Product is intact</span><select value={createDraft.is_intact} onChange={e => updateCreateDraft('is_intact', e.target.value)}>{ASSESSMENT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <label className="field"><span>Product is clean</span><select value={createDraft.is_clean} onChange={e => updateCreateDraft('is_clean', e.target.value)}>{ASSESSMENT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <label className="field"><span>Quantity</span><input type="number" min="1" step="1" value={createDraft.quantity} onChange={e => updateCreateDraft('quantity', e.target.value)} required/></label>
+          <label className="field notes-field"><span>Additional notes</span><textarea rows={2} value={createDraft.additional_notes} onChange={e => updateCreateDraft('additional_notes', e.target.value)} placeholder="Dimensions, visible damage, accessories…"/></label>
+          <label className="file-label">Product images<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e => filePicker(e.target.files, setCreateFiles)}/></label>
+          {createFiles.length > 0 && <small>{createFiles.length} image(s) selected</small>}
+          <div className="preview-strip">{createPreviews.map((url, index) => <img key={url} src={url} alt={`Selected upload ${index + 1}`}/>)}</div>
+        </div>
+        <button disabled={busy || !positiveInteger(createDraft.quantity)}>{busy ? 'Working…' : 'Create product →'}</button>
+      </form>
+      <section className="listHead"><div><label>YOUR CATALOG</label><h2>Products <small>{totalCount.toString().padStart(2, '0')}</small></h2></div><div className="filters"><select value={status} onChange={e => { setStatus(e.target.value); setPage(0); }} aria-label="Filter by assessment status"><option value="">All statuses</option><option value="incomplete">Incomplete</option><option value="complete">Complete</option></select><input className="search" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="Search name, brand, SKU…"/></div></section>
+      <div className="grid">{rows.map(row => { const primary = row.images.find(image => image.is_primary) || row.images[0]; return <article className="product-card" key={row.product.id}>
+        <button className="card-open" onClick={() => { void loadDetail(row.product.id).catch(err => setError(String(err))); }} aria-label={`Open ${row.product.name || 'unnamed product'}`}>
+          <div className="tile">{primary ? <img src={primary.url} alt={row.product.name || 'Product image'}/> : <div className="placeholder"><span>NO PRODUCT IMAGE</span><b>RAKKI</b></div>}<span className="category-tag">{row.product.category || 'PRODUCT'}</span><strong>{row.product.name || 'Unnamed product'}</strong></div>
+          <div className="row"><span>{row.product.brand || 'Brand not recorded'}</span><span className="pill">{row.product.assessment_status}</span></div>
+        </button><button className="card-delete" onClick={() => void removeProduct(row.product)} disabled={busy}>Delete</button>
+      </article>; })}</div>
+      {loading && <p className="empty">Loading products…</p>}{rows.length === 0 && !loading && !error && <p className="empty">Your catalog is ready. Add a product to begin.</p>}
+      <div className="pagination"><button className="secondary" disabled={page === 0 || loading} onClick={() => setPage(value => Math.max(0, value - 1))}>Previous</button><span>Page {page + 1} of {Math.max(1, Math.ceil(totalCount / 50))}</span><button className="secondary" disabled={(page + 1) * 50 >= totalCount || loading} onClick={() => setPage(value => value + 1)}>Next</button></div>
+    </>}
+    {tab === 'inventory' && <section className="inventory-view">
+      <div className="listHead"><div><label>PRODUCT RECORDS</label><h2>Inventory <small>{totalCount.toString().padStart(2, '0')}</small></h2></div><div className="inventory-actions"><div className="filters"><select value={status} onChange={e => { setStatus(e.target.value); setPage(0); }} aria-label="Filter by assessment status"><option value="">All statuses</option><option value="incomplete">Incomplete</option><option value="complete">Complete</option></select><input className="search" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="Search products…"/></div><button disabled={inventoryAdding || inventoryEditingId !== null} onClick={() => { setInventoryAdding(true); setInventoryDraft(emptyInventoryDraft()); }}>Add item</button></div></div>
+      {loading && <p className="empty">Loading inventory…</p>}
+      <div className="table-scroll"><table className="inventory-table"><thead><tr><th>ID</th><th>Completion Date</th><th>Location</th><th>Category</th><th>Product Name</th><th>Overall Condition</th><th>Product Is Intact</th><th>Product Is Clean</th><th>Quantity</th><th>Additional Notes</th><th>Actions</th></tr></thead><tbody>
+        {inventoryAdding && <tr className="editing-row"><td>—</td><td>—</td><td><input value={inventoryDraft.location} onChange={e => setInventoryDraft(d => ({ ...d, location: e.target.value }))} placeholder="Location"/></td><td><select value={inventoryDraft.category} onChange={e => setInventoryDraft(d => ({ ...d, category: e.target.value }))}><option value="">Choose</option>{CATEGORY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select></td><td>—</td><td><select value={inventoryDraft.overall_condition} onChange={e => setInventoryDraft(d => ({ ...d, overall_condition: e.target.value }))}>{CONDITION_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></td><td><select value={inventoryDraft.is_intact} onChange={e => setInventoryDraft(d => ({ ...d, is_intact: e.target.value }))}>{ASSESSMENT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></td><td><select value={inventoryDraft.is_clean} onChange={e => setInventoryDraft(d => ({ ...d, is_clean: e.target.value }))}>{ASSESSMENT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></td><td><input type="number" min="1" step="1" value={inventoryDraft.quantity} onChange={e => setInventoryDraft(d => ({ ...d, quantity: e.target.value }))}/></td><td><textarea value={inventoryDraft.additional_notes} onChange={e => setInventoryDraft(d => ({ ...d, additional_notes: e.target.value }))} rows={2}/></td><td className="actions-cell"><button disabled={inventorySaving || !positiveInteger(inventoryDraft.quantity)} onClick={() => void saveInventory()}>Save</button><button className="secondary" disabled={inventorySaving} onClick={cancelInventoryEdit}>Cancel</button></td></tr>}
+        {rows.map(row => {
+          const editing = inventoryEditingId === row.product.id;
+          const draft = editing ? inventoryDraft : null;
+          return <tr key={row.product.id} className={editing ? 'editing-row' : ''}>
+            <td>{row.product.id}</td><td>{displayDate(row.product.completion_date)}</td>
+            <td>{editing ? <input value={draft!.location} onChange={e => setInventoryDraft(d => ({ ...d, location: e.target.value }))}/> : row.product.location || '—'}</td>
+            <td>{editing ? <select value={draft!.category} onChange={e => setInventoryDraft(d => ({ ...d, category: e.target.value }))}><option value="">Choose</option>{draft!.category && !CATEGORY_OPTIONS.includes(draft!.category) && <option value={draft!.category}>{draft!.category} (legacy)</option>}{CATEGORY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select> : row.product.category || '—'}</td>
+            <td>{editing ? <input value={draft!.name} onChange={e => setInventoryDraft(d => ({ ...d, name: e.target.value }))} placeholder="Product name"/> : row.product.name || 'Unnamed product'}</td>
+            <td>{editing ? <select value={draft!.overall_condition} onChange={e => setInventoryDraft(d => ({ ...d, overall_condition: e.target.value }))}>{CONDITION_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : conditionLabel(row.product.overall_condition)}</td>
+            <td>{editing ? <select value={draft!.is_intact} onChange={e => setInventoryDraft(d => ({ ...d, is_intact: e.target.value }))}>{ASSESSMENT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : assessedLabel(row.product.is_intact)}</td>
+            <td>{editing ? <select value={draft!.is_clean} onChange={e => setInventoryDraft(d => ({ ...d, is_clean: e.target.value }))}>{ASSESSMENT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : assessedLabel(row.product.is_clean)}</td>
+            <td>{editing ? <input type="number" min="1" step="1" value={draft!.quantity} onChange={e => setInventoryDraft(d => ({ ...d, quantity: e.target.value }))}/> : row.product.quantity}</td>
+            <td>{editing ? <textarea value={draft!.additional_notes} onChange={e => setInventoryDraft(d => ({ ...d, additional_notes: e.target.value }))} rows={2}/> : row.product.additional_notes || '—'}</td>
+            <td className="actions-cell">{editing ? <><button disabled={inventorySaving || !positiveInteger(inventoryDraft.quantity)} onClick={() => void saveInventory()}>{inventorySaving ? 'Saving…' : 'Save'}</button><button className="secondary" disabled={inventorySaving} onClick={cancelInventoryEdit}>Cancel</button></> : <><button disabled={busy || inventoryAdding || inventoryEditingId !== null} onClick={() => editInventory(row)}>Edit</button><button className="danger" disabled={busy} onClick={() => void removeProduct(row.product)}>Delete</button></>}</td>
+          </tr>;
+        })}
+        {!loading && rows.length === 0 && !inventoryAdding && <tr><td colSpan={11} className="table-empty">No inventory records yet.</td></tr>}
+      </tbody></table></div>
+      <div className="pagination"><button className="secondary" disabled={page === 0 || loading} onClick={() => setPage(value => Math.max(0, value - 1))}>Previous</button><span>Page {page + 1} of {Math.max(1, Math.ceil(totalCount / 50))}</span><button className="secondary" disabled={(page + 1) * 50 >= totalCount || loading} onClick={() => setPage(value => value + 1)}>Next</button></div>
+    </section>}
+    {selected && <div className="overlay" onClick={() => setSelected(null)}><section className="panel" onClick={e => e.stopPropagation()}>
+      <button className="close" onClick={() => setSelected(null)} aria-label="Close">×</button><label>PRODUCT SHEET · #{selected.product.id}</label><h2>{selected.product.name || 'Unnamed product'}</h2>
+      <p className="tag">AI status: {selected.product.ai_status} · AI suggestions are unverified until reviewed.</p>
+      <form className="edit-form" onSubmit={save}><h3>Product information</h3>{fields.map(({ key, label }) => <label className="field" key={key}>{label}{suggested.has(key) ? <span className="suggestion-label">AI suggestion · unverified</span> : selected.product.field_verification?.[key] === 'verified' && <span className="verified-label">Manually reviewed</span>}{editInput(key)}</label>)}
+        <button disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button></form>
+      <div className="images-section"><h3>Product images</h3><div className="image-gallery">{selected.images.map(image => <div className="image-item" key={image.id}><img src={image.url} alt={`Product image ${image.id}`}/>{image.is_primary && <span className="primary-badge">Primary</span>}<div><button className="secondary" onClick={() => void choosePrimary(image)} disabled={image.is_primary}>Set primary</button><button className="danger" onClick={() => void removeImage(image)}>Remove</button></div></div>)}</div>
+        <label className="file-label upload-picker">Add images<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e => filePicker(e.target.files, setPendingFiles)}/></label>{pendingFiles.length > 0 && <p>{pendingFiles.length} image(s) ready to upload</p>}<div className="preview-strip">{pendingPreviews.map((url, index) => <img key={url} src={url} alt={`Selected upload ${index + 1}`}/>)}</div><button onClick={() => void addImages()} disabled={!pendingFiles.length || busy}>{busy ? 'Uploading…' : 'Upload and analyze'}</button>
+        <div className="analysis-row"><select value={analysisImage} onChange={e => setAnalysisImage(Number(e.target.value))} aria-label="Select image to analyze"><option value="">Choose image</option>{selected.images.map(image => <option key={image.id} value={image.id}>{image.is_primary ? 'Primary image' : `Image #${image.id}`}</option>)}</select><button onClick={() => selected && void analyze(selected.product.id, analysisImage ? Number(analysisImage) : undefined)} disabled={analysisBusy || !selected.images.length}>{analysisBusy ? 'Analyzing…' : 'Retry analysis'}</button></div>
+      </div>
+      <h3>Materials</h3>{selected.materials.length ? selected.materials.map(m => <p key={m.id || m.name}>{m.name} · {m.percentage ?? 'Unknown'}% · {m.verification}</p>) : <p>No composition evidence recorded.</p>}
+      <button className="secondary" onClick={async () => { const response = await fetch(`${API}/products/${selected.product.id}/assessments`, { method: 'POST' }); if (response.ok) setMessage('Assessment saved: carbon needs method and data; RAPU awaits authoritative methodology.'); else setError('Assessment failed'); }}>Assess sustainability</button>
+      <button className="danger" onClick={() => void removeProduct(selected.product)} disabled={busy}>Delete product</button>
+    </section></div>}
+  </main>;
+}

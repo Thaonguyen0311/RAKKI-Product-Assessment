@@ -1,19 +1,50 @@
 # RAKKI
 
-RAKKI is a product evidence and assessment workspace. This implementation uses React/Vite/TypeScript in `frontend/` and FastAPI, SQLAlchemy 2, Alembic, MySQL, and the official Google Gen AI SDK in `backend/`.
+RAKKI is a product evidence and assessment workspace. The existing React/Vite/TypeScript application uses FastAPI, SQLAlchemy 2, Alembic, and MySQL. Gemini image observations are assistive and remain unverified until a person reviews and saves them.
 
-## Core workflow
+## Start with Docker
 
-Create a product, upload one JPEG/PNG/WebP image (maximum configured size), and run Gemini analysis. Extracted image observations are retained as an AI extraction and only fill blank product fields; existing user-reviewed fields are not overwritten. Product edits create a revision snapshot. Excel export includes product, materials, sustainability, and evidence sheets. Carbon is reported as insufficient until a documented method and inputs exist; RAPU remains pending an authoritative formula.
-
-## Local setup
-
-Requirements: Python 3.12 (3.11+ should work), Node 20+, and a running MySQL 8 compatible server. The app does not create, reset, or drop databases. Create a dedicated `rakki` database and least-privilege `rakki_app` user yourself, then copy `backend/.env.example` to `backend/.env` and set credentials. Set `GEMINI_API_KEY` to enable image analysis. Never put keys in frontend environment variables. Configure `APP_SECRET_KEY` with a random secret before deployment.
-
-Backend (PowerShell):
+Docker Desktop with Docker Compose is the only host dependency for this workflow. From the repository root, create your local environment file and replace its password and secret placeholders:
 
 ```powershell
-cd backend
+Copy-Item .env.example .env
+```
+
+Set `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD`, and `APP_SECRET_KEY` in `.env`. Set `GEMINI_API_KEY` to enable image analysis; it may be left blank for the rest of the application. Do not commit `.env`.
+
+Build and start all services:
+
+```powershell
+docker compose up --build
+```
+
+Open the frontend at <http://localhost:5173>. The API is at <http://localhost:8000>, with interactive docs at <http://localhost:8000/docs> and health status at <http://localhost:8000/api/health>. The frontend calls the same-origin `/api` path, and Vite proxies it to the backend container. MySQL is available to the Docker network only; it is not published to the host.
+
+Stop the services while retaining MySQL and images:
+
+```powershell
+docker compose down
+```
+
+Rebuild after changing dependencies or Docker configuration:
+
+```powershell
+docker compose up --build
+```
+
+Migrations run automatically before the backend starts and are safe to repeat. To run them manually after the services are up:
+
+```powershell
+docker compose exec backend alembic upgrade head
+```
+
+The database and image uploads persist in named volumes `mysql_data` and `uploaded_images`. To permanently erase all local database data and uploads, run `docker compose down --volumes`.
+
+## Local development without Docker
+
+The backend needs Python 3.11+ and a dedicated MySQL database. In one terminal, from `backend/`:
+
+```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -22,26 +53,58 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-API docs: http://localhost:8000/docs. Health check: http://localhost:8000/api/health. Images are stored in `backend/storage` by default, outside the frontend's public directory. Back up both MySQL and that storage directory.
-
-Frontend (second terminal):
+In another terminal, from `frontend/`, with Node.js 20+:
 
 ```powershell
-cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-Set `VITE_API_URL` at frontend build time if the API is hosted somewhere other than `http://localhost:8000/api`.
+Vite proxies `/api` to `http://127.0.0.1:8000` by default. Set `VITE_PROXY_TARGET` if the local API uses another address.
 
-## Data operations
+## Product workflow
 
-Back up with `mysqldump --single-transaction -u rakki_app -p rakki > rakki-backup.sql`; restore to the intended database with `mysql -u rakki_app -p rakki < rakki-backup.sql`. Back up uploaded image files at the same time. Alembic migration downgrade is intentionally non-destructive and does not drop production tables.
+- The Catalog create form allows an empty product name. Location, category, condition, intact/clean status, quantity, additional notes, and several JPEG, PNG, or WebP images can be supplied. Quantity defaults to `1`. The product is created before any image analysis, so Gemini is optional and cannot prevent creation.
+- After a successful image upload, analysis starts automatically. Gemini can suggest a concise product name, one supported category, and observable additional notes. Review suggestions in the product form. They fill only blank, untouched, unverified fields and are not saved until the user saves the form. Images and user entries remain intact if Gemini is unavailable; the detail panel has a retry action and lets you choose the image to analyze.
+- The Inventory tab shows the database records in a paginated table with ID, completion date, location, category, product name, condition, intact/clean status, quantity, notes, and edit/delete actions. The table supports inline create, edit, save, and cancel. IDs and completion dates are read-only. Category options are `Movable Furniture and Fixed Furnishings`, `Electrical`, `HVAC and Plumbing`, `Building Components and Materials`, and `Other`.
+- Condition choices are `1 - Very Poor`, `2 - Poor`, `3 - Fair`, `4 - Good`, `5 - Excellent`, and `Not Assessed`. The condition scale is an application convention, not an original dataset rating. Intact and clean default to `Not Assessed`; Gemini does not make those judgments.
+- Product details allow edits to product name, category, subtype, brand, SKU, color, description, and condition. Saves use `PATCH /api/products/{product_id}`, create a revision snapshot, and persist field provenance and human verification separately from the AI extraction.
+- The detail panel shows every image. Users can add images, choose the primary thumbnail, or remove an image. The catalog preserves search and assessment-status filtering and links each card to its detail panel.
+- Product deletion requires confirmation and removes dependent materials, images, AI extraction records, assessments, evidence sources, revisions, and stored image files.
+- Excel export remains available from the catalog. Sustainability assessments do not invent a carbon method or RAPU score; their current status explains which method or evidence is missing.
 
-## Security and limitations
+Each image is validated from its decoded contents and limited to `MAX_UPLOAD_SIZE_MB` (5 MB by default). Up to 10 images may be submitted per request, with per-image failures reported while successful uploads are kept. The primary image defaults to the earliest uploaded image; deleting it selects the earliest remaining image.
 
-The current app is intended for local development or a trusted internal network. Authentication/authorization and production rate limiting are not implemented; do not expose it publicly until they are added. Configure CORS narrowly. The API validates decoded image formats and size, uses random storage filenames and parameterized SQLAlchemy queries, and escapes spreadsheet formula-leading text. The AI integration keeps keys server-side and does not log them. Configure Gemini model and credentials in backend environment only. No exact textile composition, origin, certification, lifespan, carbon value, or RAPU score is inferred from an image. RAPU methodology is an outstanding domain decision. Carbon methodology/factors and evidence are also required before calculation can be enabled.
+## Configuration
 
-## Tests and migrations
+Docker settings are read from the root `.env`. `backend/.env.example` documents the equivalent local backend settings. Gemini keys belong only in the backend environment and are never sent to the browser. CORS defaults are limited to the local frontend origins. Change `APP_SECRET_KEY` and database passwords before using a shared environment.
 
-Install backend requirements and run `pytest` from `backend`. Migrations are in `backend/alembic`; run `alembic upgrade head` against a dedicated empty test database for migration validation, never against a valuable database without a verified backup. Frontend production build: `npm run build` from `frontend`.
+## Migrations and compatibility
+
+The existing `0001_initial` migration uses the model metadata to create tables. `0002_primary_product_image` adds the primary-image flag only when needed and marks the earliest existing image for each product as primary. `0003_product_field_provenance` stores AI/user provenance and verification status for product fields and marks legacy data unverified. `0004_inventory_fields` adds inventory details, derives legacy completion dates from record creation dates, and defaults legacy quantities to one. Existing products and image records are retained. An empty product name is valid in the existing non-null name column, so it requires no separate migration. For local runs, apply migrations using `alembic upgrade head`; Docker runs the same command on backend startup. Back up MySQL and the image volume before production upgrades.
+
+## Tests and build
+
+Run backend tests from `backend/` after installing requirements:
+
+```powershell
+pytest
+```
+
+Build the frontend from `frontend/`:
+
+```powershell
+npm run build
+```
+
+Docker image/compose validation can be run with `docker compose config` and `docker compose up --build`.
+
+## Manual editing issue found
+
+The FastAPI `PATCH /api/products/{product_id}` route already used `ProductUpdate` and `exclude_unset=True`, so it supported partial edits for its declared fields. Users could not edit those fields because the React product sheet only displayed read-only text and exposed no controlled edit inputs or save action. The earlier browser workflow only submitted a product name during creation. This update adds the form and connects it to the existing PATCH route. The route now also accepts a full material list when supplied.
+
+The Gemini service also had a separate implementation gap: it sent the prompt and image but did not parse or return the response. It now validates the inventory suggestion structure, category options, and confidence, and intentionally does not infer condition, cleanliness, intact status, or unsupported specifications.
+
+## Security note
+
+This application still has no authentication or authorization and is intended for local or trusted internal development. Do not expose it publicly until access control and production rate limiting are added. Do not commit `.env` or publish the local development ports to an untrusted network.

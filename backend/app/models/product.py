@@ -1,13 +1,20 @@
-from datetime import datetime
-from sqlalchemy import String, Text, DateTime, ForeignKey, Numeric, JSON, Integer, Boolean, func
+from datetime import date, datetime
+from sqlalchemy import String, Text, DateTime, Date, ForeignKey, Numeric, JSON, Integer, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.session import Base
 
 class Product(Base):
     __tablename__ = 'products'
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(180), default='Untitled product')
+    name: Mapped[str] = mapped_column(String(180), default='', nullable=False)
     category: Mapped[str | None] = mapped_column(String(80))
+    location: Mapped[str | None] = mapped_column(String(180))
+    completion_date: Mapped[date] = mapped_column(Date, default=date.today, server_default=func.current_date(), nullable=False)
+    overall_condition: Mapped[int | None] = mapped_column(Integer)
+    is_intact: Mapped[bool | None] = mapped_column(Boolean)
+    is_clean: Mapped[bool | None] = mapped_column(Boolean)
+    quantity: Mapped[int] = mapped_column(Integer, default=1, server_default='1', nullable=False)
+    additional_notes: Mapped[str | None] = mapped_column(Text)
     subtype: Mapped[str | None] = mapped_column(String(80))
     brand: Mapped[str | None] = mapped_column(String(120), index=True)
     sku: Mapped[str | None] = mapped_column(String(100), index=True)
@@ -16,6 +23,8 @@ class Product(Base):
     condition: Mapped[str | None] = mapped_column(String(80))
     ai_status: Mapped[str] = mapped_column(String(30), default='not_started')
     assessment_status: Mapped[str] = mapped_column(String(40), default='incomplete')
+    field_provenance: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    field_verification: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     materials: Mapped[list['Material']] = relationship(cascade='all, delete-orphan')
@@ -39,6 +48,7 @@ class ProductImage(Base):
     filename: Mapped[str] = mapped_column(String(100), unique=True)
     content_type: Mapped[str] = mapped_column(String(40))
     size_bytes: Mapped[int] = mapped_column(Integer)
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 class AIExtraction(Base):

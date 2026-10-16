@@ -1,132 +1,384 @@
-import io, json, uuid
+import io
+import json
+import logging
+import uuid
+from datetime import date, datetime
 from pathlib import Path
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Query
-from fastapi.responses import StreamingResponse
-from PIL import Image, UnidentifiedImageError
-from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, Response, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
-from app.db.session import get_db
-from app.models.product import Product, Material, ProductImage, AIExtraction, Assessment, Revision
-from app.schemas.product import ProductIn, ProductOut, ProductUpdate, VerifyIn
+from PIL import Image, UnidentifiedImageError
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
+from app.db.session import get_db
+from app.models.product import AIExtraction, Assessment, EvidenceSource, Material, Product, ProductImage, Revision
+from app.schemas.product import CATEGORY_OPTIONS, ProductIn, ProductOut, ProductUpdate, VerifyIn
 from app.services.assessment import carbon_assessment, rapu_assessment
-import logging
-router=APIRouter(prefix='/api')
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix='/api')
+MAX_IMAGES_PER_REQUEST = 10
+ALLOWED_FORMATS = {'JPEG': ('jpg', 'image/jpeg'), 'PNG': ('png', 'image/png'), 'WEBP': ('webp', 'image/webp')}
+
+
+def storage_root() -> Path:
+    root = Path(settings.storage_dir).resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def image_path(filename: str) -> Path:
+    root = storage_root()
+    path = (root / filename).resolve()
+    if path.parent != root:
+        raise HTTPException(404, 'Image not found')
+    return path
+
+
+def snapshot(product: Product) -> dict:
+    result = {key: getattr(product, key) for key in ('id', 'name', 'category', 'location', 'completion_date', 'overall_condition', 'is_intact', 'is_clean', 'quantity', 'additional_notes', 'subtype', 'brand', 'sku', 'color', 'description', 'condition', 'field_provenance', 'field_verification')}
+    for key, value in result.items():
+        if isinstance(value, (date, datetime)):
+            result[key] = value.isoformat()
+    return result
+
+
+def image_data(image: ProductImage) -> dict:
+    return {'id': image.id, 'filename': image.filename, 'content_type': image.content_type,
+            'size_bytes': image.size_bytes, 'is_primary': image.is_primary,
+            'url': f'/api/images/{image.id}'}
+
+
 @router.get('/health')
-def health(db: Session=Depends(get_db)):
-    try: db.execute(select(1)); return {'status':'ok','database':'connected'}
-    except Exception: raise HTTPException(503,'Database unavailable')
-def snapshot(p): return {'id':p.id,'name':p.name,'category':p.category,'subtype':p.subtype,'brand':p.brand,'sku':p.sku,'color':p.color,'description':p.description,'condition':p.condition}
-@router.post('/products',response_model=ProductOut,status_code=201)
-def create_product(data:ProductIn,db:Session=Depends(get_db)):
-    p=Product(**data.model_dump(exclude={'materials'})); p.materials=[Material(**m.model_dump()) for m in data.materials]; db.add(p); db.commit(); db.refresh(p); return p
-@router.get('/products')
-def list_products(q:str|None=None,status:str|None=None,offset:int=Query(0,ge=0),limit:int=Query(50,ge=1,le=100),db:Session=Depends(get_db)):
-    stmt=select(Product)
-    if q: stmt=stmt.where(or_(Product.name.like(f'%{q}%'),Product.brand.like(f'%{q}%'),Product.sku.like(f'%{q}%'),Product.category.like(f'%{q}%')))
-    if status: stmt=stmt.where(Product.assessment_status==status)
-    rows=db.scalars(stmt.order_by(Product.updated_at.desc()).offset(offset).limit(limit)).all()
-    return [{'product':ProductOut.model_validate(p).model_dump(mode='json'),'materials':[{'name':m.name,'category':m.category,'percentage':float(m.percentage) if m.percentage is not None else None,'provenance':m.provenance,'verification':m.verification} for m in p.materials],'images':[i.filename for i in p.images]} for p in rows]
-@router.get('/products/{product_id}')
-def get_product(product_id:int,db:Session=Depends(get_db)):
-    p=db.get(Product,product_id)
-    if not p: raise HTTPException(404,'Product not found')
-    return {'product':ProductOut.model_validate(p).model_dump(mode='json'),'materials':[{'id':m.id,'name':m.name,'category':m.category,'percentage':float(m.percentage) if m.percentage is not None else None,'provenance':m.provenance,'verification':m.verification,'evidence':m.evidence} for m in p.materials],'images':[{'id':i.id,'filename':i.filename,'content_type':i.content_type} for i in p.images]}
-@router.patch('/products/{product_id}',response_model=ProductOut)
-def update_product(product_id:int,data:ProductUpdate,db:Session=Depends(get_db)):
-    p=db.get(Product,product_id)
-    if not p: raise HTTPException(404,'Product not found')
-    changes=data.model_dump(exclude_unset=True); changed=[k for k,v in changes.items() if getattr(p,k)!=v]
-    if changed:
-        db.add(Revision(product_id=p.id,snapshot=snapshot(p),changed_fields=changed))
-        for k,v in changes.items(): setattr(p,k,v)
-        db.commit(); db.refresh(p)
-    return p
-@router.post('/products/{product_id}/images',status_code=201)
-async def upload(product_id:int,file:UploadFile=File(...),db:Session=Depends(get_db)):
-    p=db.get(Product,product_id)
-    if not p: raise HTTPException(404,'Product not found')
-    data=await file.read(settings.max_upload_size_mb*1024*1024+1)
-    if not data or len(data)>settings.max_upload_size_mb*1024*1024: raise HTTPException(413,'Image is empty or exceeds the upload size limit')
+def health(db: Session = Depends(get_db)):
     try:
-        im=Image.open(io.BytesIO(data)); fmt=im.format
-        if fmt not in ('JPEG','PNG','WEBP'): raise ValueError()
-        im.verify()
-    except (UnidentifiedImageError,OSError,ValueError): raise HTTPException(415,'Upload a valid JPEG, PNG, or WebP image')
-    ext={'JPEG':'jpg','PNG':'png','WEBP':'webp'}[fmt]; name=f'{uuid.uuid4().hex}.{ext}'; root=Path(settings.storage_dir).resolve(); root.mkdir(parents=True,exist_ok=True); (root/name).write_bytes(data)
-    img=ProductImage(product_id=p.id,filename=name,content_type=f'image/{ext}',size_bytes=len(data)); db.add(img); db.commit(); db.refresh(img)
-    return {'id':img.id,'filename':name,'size_bytes':len(data),'status':'uploaded'}
+        db.execute(select(1))
+        return {'status': 'ok', 'database': 'connected'}
+    except Exception as exc:
+        logger.exception('Database health check failed')
+        raise HTTPException(503, 'Database unavailable') from exc
+
+
+@router.post('/products', response_model=ProductOut, status_code=201)
+def create_product(data: ProductIn, db: Session = Depends(get_db)):
+    product = Product(**data.model_dump(exclude={'materials'}))
+    product.field_provenance = {key: 'user_input' for key in ('name', 'category', 'subtype', 'brand', 'sku', 'color', 'description', 'condition')}
+    product.field_verification = {key: 'unverified' for key in product.field_provenance}
+    product.materials = [Material(**material.model_dump()) for material in data.materials]
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+@router.get('/products')
+def list_products(response: Response, q: str | None = None, status: str | None = None,
+                  offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=100),
+                  db: Session = Depends(get_db)):
+    stmt = select(Product)
+    if q:
+        stmt = stmt.where(or_(Product.name.like(f'%{q}%'), Product.brand.like(f'%{q}%'),
+                              Product.sku.like(f'%{q}%'), Product.category.like(f'%{q}%')))
+    if status:
+        stmt = stmt.where(Product.assessment_status == status)
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    if response is not None:
+        response.headers['X-Total-Count'] = str(total)
+    rows = db.scalars(stmt.order_by(Product.updated_at.desc()).offset(offset).limit(limit)).all()
+    result = []
+    for product in rows:
+        images = sorted(product.images, key=lambda item: (not item.is_primary, item.id))
+        result.append({'product': ProductOut.model_validate(product).model_dump(mode='json'),
+                       'materials': [{'name': m.name, 'category': m.category,
+                                      'percentage': float(m.percentage) if m.percentage is not None else None,
+                                      'provenance': m.provenance, 'verification': m.verification} for m in product.materials],
+                       'images': [image_data(image) for image in images]})
+    return result
+
+
+@router.get('/products/{product_id}')
+def get_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404, 'Product not found')
+    images = sorted(product.images, key=lambda item: (not item.is_primary, item.id))
+    materials = [{'id': m.id, 'name': m.name, 'category': m.category,
+                  'percentage': float(m.percentage) if m.percentage is not None else None,
+                  'provenance': m.provenance, 'verification': m.verification, 'evidence': m.evidence}
+                 for m in product.materials]
+    return {'product': ProductOut.model_validate(product).model_dump(mode='json'),
+            'materials': materials, 'images': [image_data(image) for image in images]}
+
+
+@router.patch('/products/{product_id}', response_model=ProductOut)
+def update_product(product_id: int, data: ProductUpdate, db: Session = Depends(get_db)):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404, 'Product not found')
+    changes = data.model_dump(exclude_unset=True)
+    materials = changes.pop('materials', None)
+    if 'category' in changes and changes['category'] is not None and changes['category'] not in CATEGORY_OPTIONS and changes['category'] != product.category:
+        raise HTTPException(422, 'Select one of the available product categories')
+    provenance = dict(product.field_provenance or {})
+    verification = dict(product.field_verification or {})
+    for key in changes:
+        provenance[key] = 'user_input'
+        verification[key] = 'verified'
+    metadata_changed = provenance != (product.field_provenance or {}) or verification != (product.field_verification or {})
+    changed = [key for key, value in changes.items() if getattr(product, key) != value]
+    if metadata_changed:
+        changed.append('field_verification')
+    if materials is not None:
+        changed.append('materials')
+    if changed:
+        db.add(Revision(product_id=product.id, snapshot=snapshot(product), changed_fields=changed))
+        for key, value in changes.items():
+            setattr(product, key, value)
+        product.field_provenance = provenance
+        product.field_verification = verification
+        if materials is not None:
+            product.materials.clear()
+            product.materials.extend(Material(**item.model_dump()) for item in data.materials or [])
+        db.commit()
+        db.refresh(product)
+    return product
+
+
+async def persist_upload(product: Product, upload: UploadFile, db: Session, primary: bool) -> tuple[dict | None, str | None]:
+    limit = settings.max_upload_size_mb * 1024 * 1024
+    data = await upload.read(limit + 1)
+    if not data or len(data) > limit:
+        return None, f'{upload.filename or "Image"}: empty or exceeds {settings.max_upload_size_mb} MB'
+    try:
+        image = Image.open(io.BytesIO(data))
+        image_format = image.format
+        if image_format not in ALLOWED_FORMATS:
+            raise ValueError('unsupported format')
+        image.verify()
+    except (UnidentifiedImageError, OSError, ValueError):
+        return None, f'{upload.filename or "Image"}: upload a valid JPEG, PNG, or WebP image'
+    extension, content_type = ALLOWED_FORMATS[image_format]
+    filename = f'{uuid.uuid4().hex}.{extension}'
+    target = image_path(filename)
+    try:
+        target.write_bytes(data)
+        row = ProductImage(product_id=product.id, filename=filename, content_type=content_type,
+                           size_bytes=len(data), is_primary=primary)
+        db.add(row)
+        db.flush()
+        db.commit()
+        db.refresh(row)
+        return image_data(row), None
+    except Exception:
+        db.rollback()
+        target.unlink(missing_ok=True)
+        logger.exception('Image upload persistence failed for product %s', product.id)
+        return None, f'{upload.filename or "Image"}: could not save image'
+
+
+@router.post('/products/{product_id}/images', status_code=201)
+async def upload_images(product_id: int, files: list[UploadFile] = File(default=[]),
+                        file: UploadFile | None = File(default=None), db: Session = Depends(get_db)):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404, 'Product not found')
+    uploads = list(files)
+    if file:
+        uploads.append(file)
+    if not uploads:
+        raise HTTPException(422, 'Choose at least one image')
+    if len(uploads) > MAX_IMAGES_PER_REQUEST:
+        raise HTTPException(413, f'Upload at most {MAX_IMAGES_PER_REQUEST} images at a time')
+    added, errors = [], []
+    for upload in uploads:
+        primary = not bool(product.images) and not added
+        row, error = await persist_upload(product, upload, db, primary)
+        if row:
+            added.append(row)
+        if error:
+            errors.append(error)
+    if not added:
+        raise HTTPException(415, {'message': 'No images were uploaded', 'errors': errors})
+    return {'uploaded': added, 'errors': errors}
+
+
+@router.get('/images/{image_id}')
+def serve_image(image_id: int, db: Session = Depends(get_db)):
+    image = db.get(ProductImage, image_id)
+    if not image:
+        raise HTTPException(404, 'Image not found')
+    path = image_path(image.filename)
+    if not path.is_file():
+        raise HTTPException(404, 'Image file is missing')
+    return FileResponse(path, media_type=image.content_type)
+
+
+@router.post('/products/{product_id}/images/{image_id}/primary')
+def select_primary_image(product_id: int, image_id: int, db: Session = Depends(get_db)):
+    image = db.get(ProductImage, image_id)
+    if not image or image.product_id != product_id:
+        raise HTTPException(404, 'Image not found for this product')
+    for candidate in db.scalars(select(ProductImage).where(ProductImage.product_id == product_id)).all():
+        candidate.is_primary = candidate.id == image_id
+    db.commit()
+    return {'status': 'ok', 'image_id': image_id}
+
+
+@router.delete('/products/{product_id}/images/{image_id}', status_code=204)
+def delete_image(product_id: int, image_id: int, db: Session = Depends(get_db)):
+    image = db.get(ProductImage, image_id)
+    if not image or image.product_id != product_id:
+        raise HTTPException(404, 'Image not found for this product')
+    filename, was_primary = image.filename, image.is_primary
+    db.delete(image)
+    db.flush()
+    if was_primary:
+        next_image = db.scalar(select(ProductImage).where(ProductImage.product_id == product_id).order_by(ProductImage.id).limit(1))
+        if next_image:
+            next_image.is_primary = True
+    db.commit()
+    image_path(filename).unlink(missing_ok=True)
+
+
 @router.post('/products/{product_id}/analyze')
-def analyze(product_id:int,db:Session=Depends(get_db)):
-    p=db.get(Product,product_id)
-    if not p: raise HTTPException(404,'Product not found')
-    img=p.images[-1] if p.images else None
-    if not img: raise HTTPException(400,'Upload an image before analysis')
-    p.ai_status='processing'; db.commit()
+def analyze(product_id: int, image_id: int | None = Query(default=None, gt=0),
+            context: dict | None = Body(default=None), db: Session = Depends(get_db)):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404, 'Product not found')
+    stmt = select(ProductImage).where(ProductImage.product_id == product_id)
+    image = db.get(ProductImage, image_id) if image_id else db.scalar(stmt.order_by(ProductImage.is_primary.desc(), ProductImage.id).limit(1))
+    if image_id and (not image or image.product_id != product_id):
+        raise HTTPException(404, 'Image not found for this product')
+    if not image:
+        raise HTTPException(400, 'Upload an image before analysis')
+    path = image_path(image.filename)
+    if not path.is_file():
+        raise HTTPException(404, 'Image file is missing; upload it again before analysis')
+    product.ai_status = 'processing'
+    db.commit()
     try:
         from app.services.gemini import analyze_image
-        result=analyze_image(str(Path(settings.storage_dir).resolve()/img.filename))
-        for key in ('name','category','subtype','brand','sku','color','description','condition'):
-            if result.get(key) and not getattr(p,key): setattr(p,key,result[key])
-        p.ai_status='completed'; db.add(AIExtraction(product_id=p.id,payload=result,status='completed',model=settings.gemini_model)); db.commit()
-        return {'status':'completed','data':result,'provenance':'ai_inference','verification':'unverified'}
-    # except Exception as exc:
-    #     p.ai_status='failed'; db.commit(); message=str(exc) if isinstance(exc,RuntimeError) else 'Image analysis failed. Retry later.'; raise HTTPException(503,message)
-    except Exception as exc:
-        logging.exception(
-            "Image analysis failed for product %s",
-            product_id,
-        )
-
-        p.ai_status = "failed"
+        analysis_context = {
+            'product_name': product.name or None,
+            'category': product.category,
+            'location': product.location,
+            'additional_notes': product.additional_notes,
+        }
+        if context:
+            for key in analysis_context:
+                if key in context and isinstance(context[key], str):
+                    analysis_context[key] = context[key][:2000]
+        from app.schemas.product import AIProductSuggestion
+        result = AIProductSuggestion.model_validate(analyze_image(str(path), analysis_context)).model_dump(mode='json')
+        db.add(AIExtraction(product_id=product.id, payload=result, status='completed', model=settings.gemini_model))
+        product.ai_status = 'completed'
         db.commit()
+        return {'status': 'completed', 'data': result, 'provenance': 'ai_inference', 'verification': 'unverified', 'image_id': image.id}
+    except Exception as exc:
+        logger.exception('Image analysis failed for product %s, image %s', product_id, image.id)
+        db.rollback()
+        product = db.get(Product, product_id)
+        product.ai_status = 'failed'
+        db.commit()
+        raise HTTPException(503, 'Image analysis failed. Check the Gemini configuration or retry later.') from exc
 
-        message = (
-            str(exc)
-            if isinstance(exc, RuntimeError)
-            else "Image analysis failed. Check the backend terminal."
-        )
 
-        raise HTTPException(
-            status_code=503,
-            detail=message,
-        ) from exc
+@router.delete('/products/{product_id}', status_code=204)
+def delete_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404, 'Product not found')
+    filenames = [image.filename for image in product.images]
+    try:
+        db.query(AIExtraction).filter(AIExtraction.product_id == product_id).delete(synchronize_session=False)
+        db.query(Assessment).filter(Assessment.product_id == product_id).delete(synchronize_session=False)
+        db.query(Revision).filter(Revision.product_id == product_id).delete(synchronize_session=False)
+        db.query(EvidenceSource).filter(EvidenceSource.product_id == product_id).delete(synchronize_session=False)
+        db.delete(product)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.exception('Product deletion failed for product %s', product_id)
+        raise HTTPException(500, 'Could not delete product') from exc
+    for filename in filenames:
+        image_path(filename).unlink(missing_ok=True)
+
 
 @router.post('/products/{product_id}/assessments')
-def assess(product_id:int,db:Session=Depends(get_db)):
-    p=db.get(Product,product_id)
-    if not p: raise HTTPException(404,'Product not found')
-    out=[]
-    for result in (carbon_assessment(p),rapu_assessment(p)):
-        db.add(Assessment(product_id=p.id,kind=result['kind'],status=result['status'],result=result['result'],unit=result['unit'],methodology=result['methodology'],details=result['details'])); out.append(result)
-    db.commit(); return out
+def assess(product_id: int, db: Session = Depends(get_db)):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404, 'Product not found')
+    output = []
+    for result in (carbon_assessment(product), rapu_assessment(product)):
+        db.add(Assessment(product_id=product.id, kind=result['kind'], status=result['status'], result=result['result'],
+                          unit=result['unit'], methodology=result['methodology'], details=result['details']))
+        output.append(result)
+    db.commit()
+    return output
+
+
 @router.get('/products/{product_id}/revisions')
-def revisions(product_id:int,db:Session=Depends(get_db)):
-    if not db.get(Product,product_id): raise HTTPException(404,'Product not found')
-    return [{'id':r.id,'snapshot':r.snapshot,'changed_fields':r.changed_fields,'created_at':r.created_at.isoformat()} for r in db.scalars(select(Revision).where(Revision.product_id==product_id).order_by(Revision.created_at.desc())).all()]
+def revisions(product_id: int, db: Session = Depends(get_db)):
+    if not db.get(Product, product_id):
+        raise HTTPException(404, 'Product not found')
+    rows = db.scalars(select(Revision).where(Revision.product_id == product_id).order_by(Revision.created_at.desc())).all()
+    return [{'id': row.id, 'snapshot': row.snapshot, 'changed_fields': row.changed_fields,
+             'created_at': row.created_at.isoformat()} for row in rows]
+
+
 @router.post('/products/{product_id}/materials/{material_id}/verify')
-def verify(product_id:int,material_id:int,data:VerifyIn,db:Session=Depends(get_db)):
-    m=db.get(Material,material_id)
-    if not m or m.product_id!=product_id: raise HTTPException(404,'Material not found')
-    m.verification=data.verification.value; m.evidence=data.reviewer_note; db.add(Revision(product_id=product_id,snapshot={'material_id':m.id,'verification':m.verification,'note':m.evidence},changed_fields=['material.verification'])); db.commit(); return {'status':m.verification}
+def verify(product_id: int, material_id: int, data: VerifyIn, db: Session = Depends(get_db)):
+    material = db.get(Material, material_id)
+    if not material or material.product_id != product_id:
+        raise HTTPException(404, 'Material not found')
+    material.verification = data.verification.value
+    material.evidence = data.reviewer_note
+    db.add(Revision(product_id=product_id, snapshot={'material_id': material.id, 'verification': material.verification,
+                                                      'note': material.evidence}, changed_fields=['material.verification']))
+    db.commit()
+    return {'status': material.verification}
+
+
 def safe_cell(value):
-    if isinstance(value,str) and value.startswith(('=','+','-','@','\t','\r')): return "'"+value
+    if isinstance(value, str) and value.startswith(('=', '+', '-', '@', '\t', '\r')):
+        return "'" + value
     return value if value is not None else 'Unknown'
+
+
 @router.get('/export.xlsx')
-def export_products(db:Session=Depends(get_db)):
-    products=db.scalars(select(Product).order_by(Product.id)).all(); wb=Workbook(); summary=wb.active; summary.title='Product summary'; summary.append(['ID','Name','Category','Subtype','Brand','SKU','Color','Condition','AI status','Assessment status'])
-    mats=wb.create_sheet('Material composition'); mats.append(['Product ID','Product','Material','Category','Percentage by weight','Provenance','Verification','Evidence'])
-    sust=wb.create_sheet('Sustainability'); sust.append(['Product ID','Product','Assessment','Status','Result','Unit','Methodology','Details'])
-    ev=wb.create_sheet('Evidence'); ev.append(['Product ID','Product','Image','Reference','Verification'])
-    for p in products:
-        summary.append([safe_cell(x) for x in [p.id,p.name,p.category,p.subtype,p.brand,p.sku,p.color,p.condition,p.ai_status,p.assessment_status]])
-        for m in p.materials: mats.append([safe_cell(x) for x in [p.id,p.name,m.name,m.category,m.percentage,m.provenance,m.verification,m.evidence]])
-        for a in db.scalars(select(Assessment).where(Assessment.product_id==p.id)): sust.append([safe_cell(x) for x in [p.id,p.name,a.kind,a.status,a.result,a.unit,a.methodology,json.dumps(a.details)]])
-        for image in p.images: ev.append([safe_cell(x) for x in [p.id,p.name,image.filename,None,'unverified']])
-    for ws in wb.worksheets:
-        ws.freeze_panes='A2'; ws.auto_filter.ref=ws.dimensions
-        for col in ws.columns: ws.column_dimensions[get_column_letter(col[0].column)].width=min(42,max(12,max((len(str(c.value or '')) for c in col),default=10)+2))
-    output=io.BytesIO(); wb.save(output); output.seek(0)
-    return StreamingResponse(output,media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',headers={'Content-Disposition':'attachment; filename="rakki-products.xlsx"'})
+def export_products(db: Session = Depends(get_db)):
+    products = db.scalars(select(Product).order_by(Product.id)).all()
+    workbook = Workbook()
+    summary = workbook.active
+    summary.title = 'Product summary'
+    summary.append(['ID', 'Name', 'Category', 'Subtype', 'Brand', 'SKU', 'Color', 'Condition', 'AI status', 'Assessment status'])
+    materials = workbook.create_sheet('Material composition')
+    materials.append(['Product ID', 'Product', 'Material', 'Category', 'Percentage by weight', 'Provenance', 'Verification', 'Evidence'])
+    sustainability = workbook.create_sheet('Sustainability')
+    sustainability.append(['Product ID', 'Product', 'Assessment', 'Status', 'Result', 'Unit', 'Methodology', 'Details'])
+    evidence = workbook.create_sheet('Evidence')
+    evidence.append(['Product ID', 'Product', 'Image', 'Reference', 'Verification'])
+    for product in products:
+        summary.append([safe_cell(getattr(product, key)) for key in ('id', 'name', 'category', 'subtype', 'brand', 'sku', 'color', 'condition', 'ai_status', 'assessment_status')])
+        for material in product.materials:
+            materials.append([safe_cell(value) for value in [product.id, product.name, material.name, material.category, material.percentage, material.provenance, material.verification, material.evidence]])
+        for assessment in db.scalars(select(Assessment).where(Assessment.product_id == product.id)):
+            sustainability.append([safe_cell(value) for value in [product.id, product.name, assessment.kind, assessment.status, assessment.result, assessment.unit, assessment.methodology, json.dumps(assessment.details)]])
+        for image in product.images:
+            evidence.append([safe_cell(value) for value in [product.id, product.name, image.filename, None, 'unverified']])
+    for sheet in workbook.worksheets:
+        sheet.freeze_panes = 'A2'
+        sheet.auto_filter.ref = sheet.dimensions
+        for column in sheet.columns:
+            sheet.column_dimensions[get_column_letter(column[0].column)].width = min(42, max(12, max((len(str(cell.value or '')) for cell in column), default=10) + 2))
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    return StreamingResponse(output, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                             headers={'Content-Disposition': 'attachment; filename="rakki-products.xlsx"'})

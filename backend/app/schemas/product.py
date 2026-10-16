@@ -1,5 +1,13 @@
 from enum import StrEnum
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
+
+CATEGORY_OPTIONS = (
+    'Movable Furniture and Fixed Furnishings',
+    'Electrical',
+    'HVAC and Plumbing',
+    'Building Components and Materials',
+    'Other',
+)
 
 class Provenance(StrEnum):
     image_observation='image_observation'; user_input='user_input'; manufacturer_source='manufacturer_source'; external_dataset='external_dataset'; ai_inference='ai_inference'; calculated='calculated'
@@ -15,15 +23,28 @@ class MaterialIn(BaseModel):
     evidence: str | None = None
 
 class ProductIn(BaseModel):
-    name: str = Field(default='Untitled product', min_length=1, max_length=180)
+    name: str = Field(default='', max_length=180, validation_alias=AliasChoices('name', 'product_name'))
     category: str | None = None
+    location: str | None = Field(default=None, max_length=180)
+    overall_condition: int | None = Field(default=None, ge=1, le=5, strict=True)
+    is_intact: bool | None = None
+    is_clean: bool | None = None
+    quantity: int = Field(default=1, ge=1, strict=True)
+    additional_notes: str | None = None
     subtype: str | None = None
     brand: str | None = None
     sku: str | None = None
     color: str | None = None
     description: str | None = None
     condition: str | None = None
-    materials: list[MaterialIn] = []
+    materials: list[MaterialIn] = Field(default_factory=list)
+
+    @field_validator('category')
+    @classmethod
+    def validate_category(cls, value):
+        if value is not None and value not in CATEGORY_OPTIONS:
+            raise ValueError('Select one of the available product categories')
+        return value
 
     @model_validator(mode='after')
     def total_percentage(self):
@@ -32,15 +53,56 @@ class ProductIn(BaseModel):
         return self
 
 class ProductUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=180)
-    category: str | None = None; subtype: str | None = None; brand: str | None = None
+    name: str | None = Field(default=None, max_length=180, validation_alias=AliasChoices('name', 'product_name'))
+    category: str | None = None
+    location: str | None = Field(default=None, max_length=180)
+    overall_condition: int | None = Field(default=None, ge=1, le=5, strict=True)
+    is_intact: bool | None = None
+    is_clean: bool | None = None
+    quantity: int = Field(default=1, ge=1, strict=True)
+    additional_notes: str | None = None
+    subtype: str | None = None; brand: str | None = None
     sku: str | None = None; color: str | None = None; description: str | None = None; condition: str | None = None
+    materials: list[MaterialIn] | None = None
+
+    @field_validator('name')
+    @classmethod
+    def name_cannot_be_null(cls, value):
+        if value is None:
+            raise ValueError('Product name may be empty but cannot be null')
+        return value
 
 class ProductOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: int; name: str; category: str | None; subtype: str | None; brand: str | None; sku: str | None
+    id: int; name: str; category: str | None; location: str | None; completion_date: object
+    overall_condition: int | None; is_intact: bool | None; is_clean: bool | None; quantity: int; additional_notes: str | None
+    subtype: str | None; brand: str | None; sku: str | None
     color: str | None; description: str | None; condition: str | None; ai_status: str; assessment_status: str
+    field_provenance: dict[str, str] = Field(default_factory=dict); field_verification: dict[str, str] = Field(default_factory=dict)
     created_at: object; updated_at: object
+
+    @computed_field
+    @property
+    def product_name(self) -> str:
+        return self.name
+
+
+class AIProductSuggestion(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    product_name: str | None = Field(default=None, max_length=180)
+    category: str | None = None
+    additional_notes: str | None = None
+    overall_condition: None = None
+    is_intact: None = None
+    is_clean: None = None
+    confidence: float = Field(default=0, ge=0, le=1)
+
+    @field_validator('category')
+    @classmethod
+    def validate_category(cls, value):
+        if value is not None and value not in CATEGORY_OPTIONS:
+            raise ValueError('AI returned a category outside the supported options')
+        return value
 
 class VerifyIn(BaseModel):
     verification: Verification

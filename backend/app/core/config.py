@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
     app_env: str = 'development'
-    app_secret_key: str = 'development-only-change-me'
+    app_secret_key: str = ''
     cors_origins: str = 'http://localhost:5173'
     db_host: str = '127.0.0.1'
     db_port: int = 3306
@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     db_user: str = 'rakki_app'
     db_password: str = ''
     gemini_api_key: str = ''
-    gemini_model: str = 'gemini-2.5-flash'
+    gemini_model: str = 'gemini-3.8-flash'
     max_upload_size_mb: int = 5
     storage_dir: str = 'storage'
 

@@ -7,4 +7,6 @@ __pycache__/
 node_modules/
 dist/
 backend/storage/
+frontend/tsconfig.tsbuildinfo
+/work/pytest-run/
 
