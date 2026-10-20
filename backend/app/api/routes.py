@@ -18,6 +18,7 @@ from app.db.session import get_db
 from app.models.product import AIExtraction, Assessment, EvidenceSource, Material, Product, ProductImage, Revision
 from app.schemas.product import CATEGORY_OPTIONS, ProductIn, ProductOut, ProductUpdate, VerifyIn
 from app.services.assessment import carbon_assessment, rapu_assessment
+from app.services.materials import material_records, resolve_material, resolve_suggestion
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix='/api')
@@ -40,7 +41,7 @@ def image_path(filename: str) -> Path:
 
 
 def snapshot(product: Product) -> dict:
-    result = {key: getattr(product, key) for key in ('id', 'name', 'category', 'location', 'completion_date', 'overall_condition', 'is_intact', 'is_clean', 'quantity', 'additional_notes', 'subtype', 'brand', 'sku', 'color', 'description', 'condition', 'field_provenance', 'field_verification')}
+    result = {key: getattr(product, key) for key in ('id', 'name', 'category', 'location', 'completion_date', 'overall_condition', 'is_intact', 'is_clean', 'quantity', 'additional_notes', 'subtype', 'brand', 'sku', 'color', 'description', 'condition', 'material', 'material_id', 'material_category', 'material_verification', 'material_confidence', 'field_provenance', 'field_verification')}
     for key, value in result.items():
         if isinstance(value, (date, datetime)):
             result[key] = value.isoformat()
@@ -63,9 +64,20 @@ def health(db: Session = Depends(get_db)):
         raise HTTPException(503, 'Database unavailable') from exc
 
 
+@router.get('/materials')
+def list_canonical_materials():
+    return list(material_records())
+
+
 @router.post('/products', response_model=ProductOut, status_code=201)
 def create_product(data: ProductIn, db: Session = Depends(get_db)):
-    product = Product(**data.model_dump(exclude={'materials'}))
+    values = data.model_dump(exclude={'materials'})
+    mapping = resolve_material(data.material)
+    values.update(material_id=mapping['material_id'] if mapping else None,
+                  material_category=mapping['material_category'] if mapping else None,
+                  material_verification='verified' if mapping else None,
+                  material_confidence=None)
+    product = Product(**values)
     product.field_provenance = {key: 'user_input' for key in ('name', 'category', 'subtype', 'brand', 'sku', 'color', 'description', 'condition')}
     product.field_verification = {key: 'unverified' for key in product.field_provenance}
     product.materials = [Material(**material.model_dump()) for material in data.materials]
@@ -121,11 +133,18 @@ def update_product(product_id: int, data: ProductUpdate, db: Session = Depends(g
         raise HTTPException(404, 'Product not found')
     changes = data.model_dump(exclude_unset=True)
     materials = changes.pop('materials', None)
+    if 'material' in changes:
+        mapping = resolve_material(changes['material'])
+        changes.update(material=mapping['material'] if mapping else None,
+                       material_id=mapping['material_id'] if mapping else None,
+                       material_category=mapping['material_category'] if mapping else None,
+                       material_verification='verified' if mapping else None,
+                       material_confidence=None)
     if 'category' in changes and changes['category'] is not None and changes['category'] not in CATEGORY_OPTIONS and changes['category'] != product.category:
         raise HTTPException(422, 'Select one of the available product categories')
     provenance = dict(product.field_provenance or {})
     verification = dict(product.field_verification or {})
-    for key in changes:
+    for key in changes.keys() - {'material_id', 'material_category', 'material_verification', 'material_confidence'}:
         provenance[key] = 'user_input'
         verification[key] = 'verified'
     metadata_changed = provenance != (product.field_provenance or {}) or verification != (product.field_verification or {})
@@ -275,6 +294,17 @@ def analyze(product_id: int, image_id: int | None = Query(default=None, gt=0),
                     analysis_context[key] = context[key][:2000]
         from app.schemas.product import AIProductSuggestion
         result = AIProductSuggestion.model_validate(analyze_image(str(path), analysis_context)).model_dump(mode='json')
+        suggestion_name = result.pop('suggested_material', None)
+        suggestion_confidence = result.pop('material_confidence', 0)
+        mapping = resolve_suggestion(suggestion_name)
+        result['material_suggestion'] = {
+            'suggested_name': (mapping['material'] if mapping else suggestion_name),
+            'material': mapping['material'] if mapping else None,
+            'material_id': mapping['material_id'] if mapping else None,
+            'material_category': mapping['material_category'] if mapping else None,
+            'confidence': suggestion_confidence,
+            'status': ('suggested' if suggestion_confidence >= 0.6 else 'uncertain') if mapping else ('unresolved' if suggestion_name else 'unknown'),
+        }
         db.add(AIExtraction(product_id=product.id, payload=result, status='completed', model=settings.gemini_model))
         product.ai_status = 'completed'
         db.commit()
@@ -357,7 +387,7 @@ def export_products(db: Session = Depends(get_db)):
     workbook = Workbook()
     summary = workbook.active
     summary.title = 'Product summary'
-    summary.append(['ID', 'Name', 'Category', 'Subtype', 'Brand', 'SKU', 'Color', 'Condition', 'AI status', 'Assessment status'])
+    summary.append(['ID', 'Name', 'Category', 'Subtype', 'Brand', 'SKU', 'Color', 'Condition', 'Material', 'Material ID', 'Material Category', 'Material verification', 'AI status', 'Assessment status'])
     materials = workbook.create_sheet('Material composition')
     materials.append(['Product ID', 'Product', 'Material', 'Category', 'Percentage by weight', 'Provenance', 'Verification', 'Evidence'])
     sustainability = workbook.create_sheet('Sustainability')
@@ -365,7 +395,7 @@ def export_products(db: Session = Depends(get_db)):
     evidence = workbook.create_sheet('Evidence')
     evidence.append(['Product ID', 'Product', 'Image', 'Reference', 'Verification'])
     for product in products:
-        summary.append([safe_cell(getattr(product, key)) for key in ('id', 'name', 'category', 'subtype', 'brand', 'sku', 'color', 'condition', 'ai_status', 'assessment_status')])
+        summary.append([safe_cell(getattr(product, key)) for key in ('id', 'name', 'category', 'subtype', 'brand', 'sku', 'color', 'condition', 'material', 'material_id', 'material_category', 'material_verification', 'ai_status', 'assessment_status')])
         for material in product.materials:
             materials.append([safe_cell(value) for value in [product.id, product.name, material.name, material.category, material.percentage, material.provenance, material.verification, material.evidence]])
         for assessment in db.scalars(select(Assessment).where(Assessment.product_id == product.id)):

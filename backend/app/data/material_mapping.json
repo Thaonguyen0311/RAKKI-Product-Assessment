@@ -1,0 +1,1522 @@
+[
+  {
+    "material": "Fly ash",
+    "material_id": 7000000184,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Bottom ash",
+    "material_id": 7000000185,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Incinerator bottom ash aggregate",
+    "material_id": 7000000186,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Crushed concrete",
+    "material_id": 7000000187,
+    "material_category": "Infra, yard, and foundations | Concrete"
+  },
+  {
+    "material": "Foamed glass crushed aggregate",
+    "material_id": 7000000188,
+    "material_category": "Infra, yard, and foundations | Insulation and water proofing"
+  },
+  {
+    "material": "Cellulose insulation, loose-fill",
+    "material_id": 7000000193,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Cellulose insulation board",
+    "material_id": 7000000194,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "EPS insulation",
+    "material_id": 7000000205,
+    "material_category": "Insulation and water proofing | Infra, yard, and foundations"
+  },
+  {
+    "material": "Brick, red",
+    "material_id": 7000000213,
+    "material_category": "Mineral materials and glass (excluding concrete)"
+  },
+  {
+    "material": "Glass wool insulation, density 20 kg/m3",
+    "material_id": 7000000214,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Brick, light",
+    "material_id": 7000000215,
+    "material_category": "Mineral materials and glass (excluding concrete)"
+  },
+  {
+    "material": "Glass wool insulation, blowing",
+    "material_id": 7000000216,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Calcium silicate brick",
+    "material_id": 7000000221,
+    "material_category": "Mineral materials and glass (excluding concrete)"
+  },
+  {
+    "material": "Glass wool insulation, density 60 kg/m3",
+    "material_id": 7000000224,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Fibre cement board",
+    "material_id": 7000000226,
+    "material_category": "Building boards | Mineral materials and glass (excluding concrete)"
+  },
+  {
+    "material": "Glass wool insulation, density 100 kg/m3",
+    "material_id": 7000000227,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Acoustic panel, glass wool 20 mm, sound absorption class A",
+    "material_id": 7000000228,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Acoustic panel, glass wool 40 mm, sound absorption class A",
+    "material_id": 7000000229,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Expanded clay crushed aggregate",
+    "material_id": 7000000236,
+    "material_category": "Insulation and water proofing | Infra, yard, and foundations"
+  },
+  {
+    "material": "PU-insulation",
+    "material_id": 7000000241,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Stone wool, low-density for general building insulation, average density 30 kg/m3",
+    "material_id": 7000000244,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Stone wool insulation for facades, density 61 kg/m3",
+    "material_id": 7000000245,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Stone wool insulation for roofs, density 63 kg/m3",
+    "material_id": 7000000246,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Stone wool insulation, blowing, average density 33 kg/m3",
+    "material_id": 7000000247,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Acoustic panel, stone wool, Edge B, C, D",
+    "material_id": 7000000248,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Acoustic panel, stone wool, Edge A, E",
+    "material_id": 7000000249,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Water vapor barrier, PE",
+    "material_id": 7000000252,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Gypsum plasterboard, interiors",
+    "material_id": 7000000258,
+    "material_category": "Building boards | Mineral materials and glass (excluding concrete)"
+  },
+  {
+    "material": "XPS-insulation",
+    "material_id": 7000000259,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Gypsum plasterboard, wind shield",
+    "material_id": 7000000263,
+    "material_category": "Building boards | Mineral materials and glass (excluding concrete)"
+  },
+  {
+    "material": "Gypsum plasterboard, hard, fire resistant",
+    "material_id": 7000000264,
+    "material_category": "Building boards | Mineral materials and glass (excluding concrete)"
+  },
+  {
+    "material": "Bitumen waterproofing membrane, top layer membrane, TL2",
+    "material_id": 7000000267,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Bitumen waterproofing membrane, single-ply roofing system, TL1",
+    "material_id": 7000000268,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Bitumen waterproofing membrane, bottom layer, TL2/TL3",
+    "material_id": 7000000270,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Bitumen waterproofing membrane, roofing shingle",
+    "material_id": 7000000271,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Bitumen waterproofing membrane, continuous roofing system",
+    "material_id": 7000000272,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Paint, acrylic, water-borne for interior use",
+    "material_id": 7000000274,
+    "material_category": "Floorings and surface materials"
+  },
+  {
+    "material": "Paint, acrylic, water-borne for exterior use",
+    "material_id": 7000000275,
+    "material_category": "Floorings and surface materials"
+  },
+  {
+    "material": "Paint, silicate paint for mineral surface",
+    "material_id": 7000000276,
+    "material_category": "Floorings and surface materials"
+  },
+  {
+    "material": "Paint, epoxy-based for interior use for floors",
+    "material_id": 7000000277,
+    "material_category": "Floorings and surface materials"
+  },
+  {
+    "material": "Aluminium profile, -tube or -rod, extruded, scrap 0%",
+    "material_id": 7000000280,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Aluminium profile, scrap 100%",
+    "material_id": 7000000281,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Aluminium profile, scrap min. 75%",
+    "material_id": 7000000282,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Aluminium sheet for walls and ceilings, scrap 0%",
+    "material_id": 7000000283,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Aluminium foil, scrap 0%",
+    "material_id": 7000000285,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Copper sheet",
+    "material_id": 7000000288,
+    "material_category": "Steel and other metals | Supplementary products"
+  },
+  {
+    "material": "Copper tube",
+    "material_id": 7000000289,
+    "material_category": "Steel and other metals | HVAC products and electrical installations"
+  },
+  {
+    "material": "Copper wire",
+    "material_id": 7000000290,
+    "material_category": "Steel and other metals | HVAC products and electrical installations"
+  },
+  {
+    "material": "Stainless steel sheet",
+    "material_id": 7000000292,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Stainless steel rebar",
+    "material_id": 7000000293,
+    "material_category": "Steel and other metals | Concrete"
+  },
+  {
+    "material": "Stainless steel tube",
+    "material_id": 7000000294,
+    "material_category": "Steel and other metals | HVAC products and electrical installations"
+  },
+  {
+    "material": "Structural steel for load bearing structure",
+    "material_id": 7000000297,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Metal coated light-weight steel profile or grill",
+    "material_id": 7000000298,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Color coated steel sheet profile",
+    "material_id": 7000000300,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Steel rebar for concrete reinforcement",
+    "material_id": 7000000301,
+    "material_category": "Steel and other metals | Concrete"
+  },
+  {
+    "material": "Steel strand for pre- and post-stressed concrete structures",
+    "material_id": 7000000302,
+    "material_category": "Steel and other metals | Concrete"
+  },
+  {
+    "material": "Sandwich panel, steel, mineral wool insulation",
+    "material_id": 7000000303,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Sandwich panel, steel, PU/PIR/EPS insulation",
+    "material_id": 7000000304,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Concrete block, insulated, U=0.17 W/m2K",
+    "material_id": 7000000308,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Concrete cavity block",
+    "material_id": 7000000309,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Concrete block, lightweight aggregates, insulated, U=0.17 W/m2K",
+    "material_id": 7000000310,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Concrete block, lightweight aggregates, not insulated",
+    "material_id": 7000000311,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Concrete roofing tile",
+    "material_id": 7000000312,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Concrete paving block",
+    "material_id": 7000000313,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C20/25, GWP.REF®",
+    "material_id": 7000000320,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C25/30, GWP.REF®",
+    "material_id": 7000000321,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37, GWP.REF®",
+    "material_id": 7000000322,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37, air-entrained, GWP.REF®",
+    "material_id": 7000000323,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C20/25, GWP.70®",
+    "material_id": 7000000326,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Concrete well element Cr 2000",
+    "material_id": 7000000331,
+    "material_category": "Concrete | Infra, yard, and foundations"
+  },
+  {
+    "material": "Concrete well element Cr 800",
+    "material_id": 7000000332,
+    "material_category": "Concrete | Infra, yard, and foundations"
+  },
+  {
+    "material": "Concrete pipe 600 Dr",
+    "material_id": 7000000333,
+    "material_category": "Concrete | Infra, yard, and foundations"
+  },
+  {
+    "material": "Concrete pipe 1200 Dr",
+    "material_id": 7000000334,
+    "material_category": "Concrete | Infra, yard, and foundations"
+  },
+  {
+    "material": "Concrete pipe 1200 Br",
+    "material_id": 7000000335,
+    "material_category": "Concrete | Infra, yard, and foundations"
+  },
+  {
+    "material": "Concrete pipe, unreinforced",
+    "material_id": 7000000336,
+    "material_category": "Concrete | Infra, yard, and foundations"
+  },
+  {
+    "material": "Concrete pile RTB-250",
+    "material_id": 7000000337,
+    "material_category": "Concrete | Infra, yard, and foundations"
+  },
+  {
+    "material": "Concrete pile RTB-300",
+    "material_id": 7000000338,
+    "material_category": "Concrete | Infra, yard, and foundations"
+  },
+  {
+    "material": "Concrete pile RTB-350",
+    "material_id": 7000000339,
+    "material_category": "Concrete | Infra, yard, and foundations"
+  },
+  {
+    "material": "Crushed rock",
+    "material_id": 7000000345,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Base course asphalt concrete (AC base)",
+    "material_id": 7000000349,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Wearing course asphalt concrete (AC surf)",
+    "material_id": 7000000352,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Geotextile, PP-based",
+    "material_id": 7000000356,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Natural gravel and sand",
+    "material_id": 7000000360,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "stabilizer, lime-cement (50/50)",
+    "material_id": 7000000363,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "stabilizer, lime-cement-LKD (1:1:1)",
+    "material_id": 7000000364,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "stabilizer, lime-cement (30/70)",
+    "material_id": 7000000365,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "stabilizer, lime-cement-gypsum (1:1:1), problematic soils",
+    "material_id": 7000000366,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "stabilizer, cement",
+    "material_id": 7000000367,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Steel rock point or pile joint for foundation pile",
+    "material_id": 7000000371,
+    "material_category": "Steel and other metals | Infra, yard, and foundations"
+  },
+  {
+    "material": "Chipboard",
+    "material_id": 7000000374,
+    "material_category": "Solid wood | Building boards"
+  },
+  {
+    "material": "Chipboard, melamine coated",
+    "material_id": 7000000377,
+    "material_category": "Solid wood | Building boards"
+  },
+  {
+    "material": "CLT, Cross laminated timber",
+    "material_id": 7000000378,
+    "material_category": "Solid wood"
+  },
+  {
+    "material": "OSB panel",
+    "material_id": 7000000381,
+    "material_category": "Solid wood | Building boards"
+  },
+  {
+    "material": "Plywood, spruce, uncoated",
+    "material_id": 7000000382,
+    "material_category": "Solid wood | Building boards"
+  },
+  {
+    "material": "Plywood, spruce, coated",
+    "material_id": 7000000385,
+    "material_category": "Solid wood | Building boards"
+  },
+  {
+    "material": "Plywood, birch, uncoated",
+    "material_id": 7000000386,
+    "material_category": "Solid wood | Building boards"
+  },
+  {
+    "material": "Plywood, birch, coated",
+    "material_id": 7000000387,
+    "material_category": "Solid wood | Building boards"
+  },
+  {
+    "material": "Sawn timber",
+    "material_id": 7000000390,
+    "material_category": "Solid wood | Infra, yard, and foundations"
+  },
+  {
+    "material": "Sawn timber, planed",
+    "material_id": 7000000391,
+    "material_category": "Solid wood | Infra, yard, and foundations"
+  },
+  {
+    "material": "Fibreboard, hard",
+    "material_id": 7000000394,
+    "material_category": "Building boards"
+  },
+  {
+    "material": "Fibreboard, soft, impregnated",
+    "material_id": 7000000395,
+    "material_category": "Building boards"
+  },
+  {
+    "material": "Fibreboard, medium density, mdf",
+    "material_id": 7000000396,
+    "material_category": "Building boards"
+  },
+  {
+    "material": "Fibreboard, medium density, mdf, melamine coated",
+    "material_id": 7000000397,
+    "material_category": "Building boards"
+  },
+  {
+    "material": "GLT, Glued laminated timber",
+    "material_id": 7000000398,
+    "material_category": "Solid wood"
+  },
+  {
+    "material": "Heat treated timber for outdoor use",
+    "material_id": 7000000404,
+    "material_category": "Solid wood | Supplementary products"
+  },
+  {
+    "material": "Heat treated timber for indoor use",
+    "material_id": 7000000405,
+    "material_category": "Solid wood | Supplementary products"
+  },
+  {
+    "material": "Heat treated planed timber for outdoor use",
+    "material_id": 7000000406,
+    "material_category": "Solid wood | Supplementary products"
+  },
+  {
+    "material": "Heat treated planed timber for indoor use",
+    "material_id": 7000000407,
+    "material_category": "Solid wood | Supplementary products"
+  },
+  {
+    "material": "Impregnated timber",
+    "material_id": 7000000411,
+    "material_category": "Solid wood | Infra, yard, and foundations"
+  },
+  {
+    "material": "Laminated log wall structure",
+    "material_id": 7000000414,
+    "material_category": "Solid wood"
+  },
+  {
+    "material": "LVL, laminated veneer lumber for beams, posts, and panels",
+    "material_id": 7000000418,
+    "material_category": "Solid wood"
+  },
+  {
+    "material": "LVL, laminated veneer lumber for wall studs",
+    "material_id": 7000000419,
+    "material_category": "Solid wood"
+  },
+  {
+    "material": "GLVL, multiple glued laminated veneer lumber",
+    "material_id": 7000000420,
+    "material_category": "Solid wood"
+  },
+  {
+    "material": "Float glass",
+    "material_id": 7000000424,
+    "material_category": "Mineral materials and glass (excluding concrete) | Supplementary products"
+  },
+  {
+    "material": "Air exchanger with heat recovery",
+    "material_id": 7000000426,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Coated glass",
+    "material_id": 7000000427,
+    "material_category": "Mineral materials and glass (excluding concrete) | Supplementary products"
+  },
+  {
+    "material": "Thermally toughened glass",
+    "material_id": 7000000430,
+    "material_category": "Mineral materials and glass (excluding concrete) | Supplementary products"
+  },
+  {
+    "material": "Exhaust ventilation system",
+    "material_id": 7000000431,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Laminated glass",
+    "material_id": 7000000432,
+    "material_category": "Mineral materials and glass (excluding concrete) | Supplementary products"
+  },
+  {
+    "material": "Water pump",
+    "material_id": 7000000435,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Mirror glass",
+    "material_id": 7000000436,
+    "material_category": "Mineral materials and glass (excluding concrete) | Supplementary products"
+  },
+  {
+    "material": "Radiator, water circuit",
+    "material_id": 7000000439,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Heat pump, air to air",
+    "material_id": 7000000442,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Kitchen faucet with dishwasher valve",
+    "material_id": 7000000445,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Insulating glass unit",
+    "material_id": 7000000446,
+    "material_category": "Mineral materials and glass (excluding concrete) | Supplementary products"
+  },
+  {
+    "material": "Bathroom faucet",
+    "material_id": 7000000449,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Shower faucet with shower set",
+    "material_id": 7000000450,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Screed, cement-based",
+    "material_id": 7000000452,
+    "material_category": "Mineral materials and glass (excluding concrete) | Floorings and surface materials"
+  },
+  {
+    "material": "Plastering mortar",
+    "material_id": 7000000456,
+    "material_category": "Mineral materials and glass (excluding concrete) | Floorings and surface materials"
+  },
+  {
+    "material": "Bathroom washbasin",
+    "material_id": 7000000457,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Kitchen sink",
+    "material_id": 7000000458,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Masonry mortar",
+    "material_id": 7000000459,
+    "material_category": "Mineral materials and glass (excluding concrete) | Floorings and surface materials"
+  },
+  {
+    "material": "Toilet seat",
+    "material_id": 7000000462,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "In-house sewer pipes, PP",
+    "material_id": 7000000463,
+    "material_category": "HVAC products and electrical installations | Infra, yard, and foundations"
+  },
+  {
+    "material": "Rainwater and drainage pipes",
+    "material_id": 7000000464,
+    "material_category": "HVAC products and electrical installations | Infra, yard, and foundations"
+  },
+  {
+    "material": "Drinking water pipe, PEX",
+    "material_id": 7000000465,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Heat distribution pipe, PE/PEX",
+    "material_id": 7000000468,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Sprinkler system, pipes",
+    "material_id": 7000000471,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Ventilation duct, metal",
+    "material_id": 7000000474,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Electric cable protecting pipe, PVC",
+    "material_id": 7000000477,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Electrical cable, low voltage",
+    "material_id": 7000000480,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Solar panel, monocrystalline",
+    "material_id": 7000000483,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Solar thermal collector, flat plate",
+    "material_id": 7000000487,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Luminaire, LED",
+    "material_id": 7000000490,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Passenger elevator",
+    "material_id": 7000000493,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Kitchen lower cabinet",
+    "material_id": 7000000496,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Kitchen wall cabinet",
+    "material_id": 7000000497,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Bathroom full height cabinet",
+    "material_id": 7000000501,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Bathroom mirror cabinet",
+    "material_id": 7000000502,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Bathroom sink cabinet",
+    "material_id": 7000000503,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Door, metallic, fire-rated",
+    "material_id": 7000000505,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Door, indoor flush door",
+    "material_id": 7000000508,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Door, outdoor, glass with aluminium frame",
+    "material_id": 7000000511,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Door, outdoor, wooden with wooden frame",
+    "material_id": 7000000514,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Door, outdoor, wooden with steel frame",
+    "material_id": 7000000515,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Window, wood-aluminium, triple-glazed",
+    "material_id": 7000000518,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Partition wall, glass with aluminium frame",
+    "material_id": 7000000522,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Partition wall, glass with wooden frame",
+    "material_id": 7000000523,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Glass tile",
+    "material_id": 7000000526,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Glass-aluminium facade, triple-glazed",
+    "material_id": 7000000527,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Flooring, parquet",
+    "material_id": 7000000532,
+    "material_category": "Floorings and surface materials | Supplementary products"
+  },
+  {
+    "material": "Ceramic tile for floors",
+    "material_id": 7000000538,
+    "material_category": "Floorings and surface materials | Mineral materials and glass (excluding concrete) | Supplementary products"
+  },
+  {
+    "material": "Ceramic tile for walls",
+    "material_id": 7000000539,
+    "material_category": "Floorings and surface materials | Mineral materials and glass (excluding concrete) | Supplementary products"
+  },
+  {
+    "material": "Textile flooring, polyamide",
+    "material_id": 7000000543,
+    "material_category": "Floorings and surface materials | Supplementary products"
+  },
+  {
+    "material": "Vinyl flooring",
+    "material_id": 7000000547,
+    "material_category": "Floorings and surface materials | Supplementary products"
+  },
+  {
+    "material": "Chimney element, steel",
+    "material_id": 7000000552,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Staircase, wooden",
+    "material_id": 7000000555,
+    "material_category": "Supplementary products"
+  },
+  {
+    "material": "Electrical group center",
+    "material_id": 7000000569,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Floor and facade stone, natural stone",
+    "material_id": 7000000572,
+    "material_category": "Floorings and surface materials"
+  },
+  {
+    "material": "Slate yard or facade stone, natural stone",
+    "material_id": 7000000573,
+    "material_category": "Infra, yard, and foundations | Floorings and surface materials"
+  },
+  {
+    "material": "Rectangular paving stone, natural stone",
+    "material_id": 7000000574,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Curb stone, natural stone",
+    "material_id": 7000000575,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Precast concrete, prestressed beam",
+    "material_id": 7000000578,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, beam 680 x 380 mm",
+    "material_id": 7000000579,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, beam 480 x 380 mm",
+    "material_id": 7000000581,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, inner wall 150, insulation 140 mm",
+    "material_id": 7000000585,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, inner wall 180, insulation 140 mm",
+    "material_id": 7000000586,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, inner wall 200, insulation 140 mm",
+    "material_id": 7000000587,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, sandwich, exterior wall 80+220+80 mm",
+    "material_id": 7000000588,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, sandwich, exterior wall 150+220+80 mm",
+    "material_id": 7000000589,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, partition wall element 200 mm",
+    "material_id": 7000000590,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, hollow core slab 320 mm",
+    "material_id": 7000000592,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, solid slab 260 mm",
+    "material_id": 7000000593,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, solid balcony slab 240 mm, C30/37",
+    "material_id": 7000000594,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, ribbed floor, TT-slab C50/60",
+    "material_id": 7000000595,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, solid slab element 220 mm",
+    "material_id": 7000000660,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, solid slab element 280 mm",
+    "material_id": 7000000666,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, hollow core slab 500 mm",
+    "material_id": 7000000667,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, hollow core slab 200 mm",
+    "material_id": 7000000669,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, hollow core slab 265 mm",
+    "material_id": 7000000670,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, hollow core slab 400 mm",
+    "material_id": 7000000671,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, hollow core slab 370 mm",
+    "material_id": 7000000672,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, partition wall element 250 mm",
+    "material_id": 7000000676,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, partition wall element 150 mm",
+    "material_id": 7000000678,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, column 580 x 580 mm",
+    "material_id": 7000000683,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, column 480 x 480 mm",
+    "material_id": 7000000684,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, column 280 x 280 mm",
+    "material_id": 7000000685,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, column 380 x 380 mm",
+    "material_id": 7000000686,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, beam 580 x 380 mm",
+    "material_id": 7000000687,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Precast concrete, beam 780 x 480 mm",
+    "material_id": 7000000688,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Phenolic insulation, aluminum foil coating, 20mm",
+    "material_id": 7000000987,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Phenolic insulation, aluminum foil coating, 40-200mm",
+    "material_id": 7000000988,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Phenolic insulation, glass tissue coating, 20mm",
+    "material_id": 7000000989,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Phenolic insulation, glass tissue coating, 80-220mm",
+    "material_id": 7000000990,
+    "material_category": "Insulation and water proofing"
+  },
+  {
+    "material": "Autoclaved aerated concrete block, exterior walls",
+    "material_id": 7000000995,
+    "material_category": "Mineral materials and glass (excluding concrete) | Concrete"
+  },
+  {
+    "material": "Autoclaved aerated concrete block, interior walls",
+    "material_id": 7000000996,
+    "material_category": "Mineral materials and glass (excluding concrete) | Concrete"
+  },
+  {
+    "material": "Autoclaved aerated concrete, reinforced element for floor and wall",
+    "material_id": 7000000997,
+    "material_category": "Mineral materials and glass (excluding concrete) | Concrete"
+  },
+  {
+    "material": "Autoclaved aerated concrete, reinforced lintel",
+    "material_id": 7000000998,
+    "material_category": "Mineral materials and glass (excluding concrete) | Concrete"
+  },
+  {
+    "material": "Stone mastic asphalt (SMA)",
+    "material_id": 7000001006,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Soft asphalt (SA)",
+    "material_id": 7000001007,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Mastic asphalt (MA)",
+    "material_id": 7000001008,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Porous asphalt (PA)",
+    "material_id": 7000001009,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45, GWP.REF®",
+    "material_id": 7000001010,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55, GWP.REF®",
+    "material_id": 7000001011,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60, GWP.REF®",
+    "material_id": 7000001012,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45, air-entrained, GWP.REF®",
+    "material_id": 7000001013,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55, air-entrained, GWP.REF®",
+    "material_id": 7000001014,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60, air-entrained, GWP.REF®",
+    "material_id": 7000001015,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C25/30, GWP.70®",
+    "material_id": 7000001016,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37, GWP.70®",
+    "material_id": 7000001017,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45, GWP.70®",
+    "material_id": 7000001018,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55, GWP.70®",
+    "material_id": 7000001019,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60, GWP.70®",
+    "material_id": 7000001020,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37, air-entrained, GWP.70®",
+    "material_id": 7000001021,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45, air-entrained, GWP.70®",
+    "material_id": 7000001022,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55, air-entrained, GWP.70®",
+    "material_id": 7000001023,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60, air-entrained, GWP.70®",
+    "material_id": 7000001024,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45, GWP.85®",
+    "material_id": 7000001025,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55, GWP.85®",
+    "material_id": 7000001026,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60, GWP.85®",
+    "material_id": 7000001027,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45, air-entrained, GWP.85®",
+    "material_id": 7000001028,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55, air-entrained, GWP.85®",
+    "material_id": 7000001029,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60, air-entrained, GWP.85®",
+    "material_id": 7000001030,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37, air-entrained, GWP.85®",
+    "material_id": 7000001031,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C25/30, GWP.85®",
+    "material_id": 7000001032,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37, GWP.85®",
+    "material_id": 7000001033,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C20/25, GWP.85®",
+    "material_id": 7000001034,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Modular luminaire",
+    "material_id": 7000001041,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Pendant luminaire",
+    "material_id": 7000001042,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Industrial luminaire",
+    "material_id": 7000001043,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Street or column luminaire",
+    "material_id": 7000001044,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Electrical cable, medium voltage",
+    "material_id": 7000001045,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Cable trays and ladders",
+    "material_id": 7000001046,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Solid log wall structure",
+    "material_id": 7000001047,
+    "material_category": "Solid wood"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50, GWP.REF®",
+    "material_id": 7000001048,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50, air-entrained, GWP.REF®",
+    "material_id": 7000001049,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50, GWP.85®",
+    "material_id": 7000001050,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50, air-entrained, GWP.85®",
+    "material_id": 7000001051,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50, GWP.70®",
+    "material_id": 7000001052,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50, air-entrained, GWP.70®",
+    "material_id": 7000001053,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C20/25, GWP.55®",
+    "material_id": 7000001054,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C25/30, GWP.55®",
+    "material_id": 7000001055,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37, GWP.55®",
+    "material_id": 7000001056,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45, GWP.55®",
+    "material_id": 7000001057,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50, GWP.55®",
+    "material_id": 7000001058,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55, GWP.55®",
+    "material_id": 7000001059,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60, GWP.55®",
+    "material_id": 7000001060,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37, air-entrained, GWP.55®",
+    "material_id": 7000001061,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45, air-entrained, GWP.55®",
+    "material_id": 7000001062,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50, air-entrained, GWP.55®",
+    "material_id": 7000001063,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55, air-entrained, GWP.55®",
+    "material_id": 7000001064,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60, air-entrained, GWP.55®",
+    "material_id": 7000001065,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C20/25, GWP.40®",
+    "material_id": 7000001066,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C25/30, GWP.40®",
+    "material_id": 7000001067,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37, GWP.40®",
+    "material_id": 7000001068,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45, GWP.40®",
+    "material_id": 7000001069,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50, GWP.40®",
+    "material_id": 7000001070,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55, GWP.40®",
+    "material_id": 7000001071,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60, GWP.40®",
+    "material_id": 7000001072,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37, air-entrained, GWP.40®",
+    "material_id": 7000001073,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45, air-entrained, GWP.40®",
+    "material_id": 7000001074,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50, air-entrained, GWP.40®",
+    "material_id": 7000001075,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55, air-entrained, GWP.40®",
+    "material_id": 7000001076,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60, air-entrained, GWP.40®",
+    "material_id": 7000001077,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Artificial grass mat",
+    "material_id": 7000001078,
+    "material_category": "Infra, yard, and foundations | Floorings and surface materials"
+  },
+  {
+    "material": "Tree seedling, nursery",
+    "material_id": 7000001079,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "stabilizer, lime-cement (20/80)",
+    "material_id": 7000001091,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "stabilizer, cement-LKD (50/50), easy clay soils",
+    "material_id": 7000001092,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Escalator",
+    "material_id": 7000001103,
+    "material_category": "HVAC products and electrical installations"
+  },
+  {
+    "material": "Ready-mix concrete, C20/25",
+    "material_id": 7000001104,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C25/30",
+    "material_id": 7000001105,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37",
+    "material_id": 7000001106,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45",
+    "material_id": 7000001107,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50",
+    "material_id": 7000001108,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55",
+    "material_id": 7000001109,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60",
+    "material_id": 7000001110,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C30/37, air-entrained",
+    "material_id": 7000001111,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C35/45, air-entrained",
+    "material_id": 7000001112,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C40/50, air-entrained",
+    "material_id": 7000001113,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C45/55, air-entrained",
+    "material_id": 7000001114,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Ready-mix concrete, C50/60, air-entrained",
+    "material_id": 7000001115,
+    "material_category": "Concrete"
+  },
+  {
+    "material": "Handcrafted log",
+    "material_id": 7000001116,
+    "material_category": "Solid wood"
+  },
+  {
+    "material": "Frost masonry mortar",
+    "material_id": 7000001119,
+    "material_category": "Mineral materials and glass (excluding concrete) | Floorings and surface materials"
+  },
+  {
+    "material": "General mortar",
+    "material_id": 7000001120,
+    "material_category": "Mineral materials and glass (excluding concrete) | Floorings and surface materials"
+  },
+  {
+    "material": "Element joint mortar",
+    "material_id": 7000001121,
+    "material_category": "Mineral materials and glass (excluding concrete) | Floorings and surface materials"
+  },
+  {
+    "material": "Repair mortar",
+    "material_id": 7000001122,
+    "material_category": "Mineral materials and glass (excluding concrete) | Floorings and surface materials"
+  },
+  {
+    "material": "Tile fix",
+    "material_id": 7000001123,
+    "material_category": "Mineral materials and glass (excluding concrete) | Floorings and surface materials"
+  },
+  {
+    "material": "Tile grout",
+    "material_id": 7000001124,
+    "material_category": "Mineral materials and glass (excluding concrete) | Floorings and surface materials"
+  },
+  {
+    "material": "Screed, cement 0 %",
+    "material_id": 7000001125,
+    "material_category": "Mineral materials and glass (excluding concrete) | Floorings and surface materials"
+  },
+  {
+    "material": "Steel connecting part for concrete structures",
+    "material_id": 7000001126,
+    "material_category": "Steel and other metals | Concrete"
+  },
+  {
+    "material": "Steel pile",
+    "material_id": 7000001127,
+    "material_category": "Steel and other metals | Infra, yard, and foundations"
+  },
+  {
+    "material": "Steel profile, 100 % scrap-based",
+    "material_id": 7000001129,
+    "material_category": "Steel and other metals"
+  },
+  {
+    "material": "Dense asphalt concrete (DAC)",
+    "material_id": 7000001130,
+    "material_category": "Infra, yard, and foundations"
+  },
+  {
+    "material": "Exhaust air equipment",
+    "material_id": 7000001131,
+    "material_category": "HVAC products and electrical installations"
+  }
+]

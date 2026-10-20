@@ -41,11 +41,9 @@ def upgrade():
     if columns['completion_date']['nullable']:
         if bind.dialect.name == 'sqlite':
             with op.batch_alter_table('products') as batch:
-                batch.alter_column('completion_date', existing_type=sa.Date(), nullable=False, server_default=sa.text('CURRENT_DATE'))
+                batch.alter_column('completion_date', existing_type=sa.Date(), nullable=False)
         else:
-            op.alter_column('products', 'completion_date', existing_type=sa.Date(), nullable=False, server_default=sa.text('CURRENT_DATE'))
-    elif columns['completion_date'].get('default') is None:
-        op.alter_column('products', 'completion_date', existing_type=sa.Date(), nullable=False, server_default=sa.text('CURRENT_DATE'))
+            op.alter_column('products', 'completion_date', existing_type=sa.Date(), nullable=False)
 
     columns = _columns()
     if columns['quantity']['nullable']:

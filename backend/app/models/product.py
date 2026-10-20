@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from sqlalchemy import String, Text, DateTime, Date, ForeignKey, Numeric, JSON, Integer, Boolean, func
+from sqlalchemy import String, Text, DateTime, Date, ForeignKey, Numeric, JSON, Integer, Boolean, BigInteger, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.session import Base
 
@@ -9,7 +9,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(180), default='', nullable=False)
     category: Mapped[str | None] = mapped_column(String(80))
     location: Mapped[str | None] = mapped_column(String(180))
-    completion_date: Mapped[date] = mapped_column(Date, default=date.today, server_default=func.current_date(), nullable=False)
+    completion_date: Mapped[date] = mapped_column(Date, default=date.today, nullable=False)
     overall_condition: Mapped[int | None] = mapped_column(Integer)
     is_intact: Mapped[bool | None] = mapped_column(Boolean)
     is_clean: Mapped[bool | None] = mapped_column(Boolean)
@@ -21,6 +21,11 @@ class Product(Base):
     color: Mapped[str | None] = mapped_column(String(100))
     description: Mapped[str | None] = mapped_column(Text)
     condition: Mapped[str | None] = mapped_column(String(80))
+    material: Mapped[str | None] = mapped_column(String(180))
+    material_id: Mapped[int | None] = mapped_column(BigInteger)
+    material_category: Mapped[str | None] = mapped_column(Text)
+    material_verification: Mapped[str | None] = mapped_column(String(30))
+    material_confidence: Mapped[float | None] = mapped_column(Numeric(4, 3))
     ai_status: Mapped[str] = mapped_column(String(30), default='not_started')
     assessment_status: Mapped[str] = mapped_column(String(40), default='incomplete')
     field_provenance: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
