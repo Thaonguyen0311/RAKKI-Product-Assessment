@@ -102,6 +102,12 @@ class ProductOut(BaseModel):
         return self.name
 
 
+class AIMaterialCandidate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str = Field(min_length=1, max_length=180)
+    confidence: float = Field(ge=0, le=1)
+
+
 class AIProductSuggestion(BaseModel):
     model_config = ConfigDict(extra='forbid')
     product_name: str | None = Field(default=None, max_length=180)
@@ -109,6 +115,7 @@ class AIProductSuggestion(BaseModel):
     additional_notes: str | None = None
     suggested_material: str | None = Field(default=None, max_length=180)
     material_confidence: float = Field(default=0, ge=0, le=1)
+    material_candidates: list[AIMaterialCandidate] = Field(default_factory=list, max_length=5)
     overall_condition: None = None
     is_intact: None = None
     is_clean: None = None

@@ -18,7 +18,7 @@ from app.db.session import get_db
 from app.models.product import AIExtraction, Assessment, EvidenceSource, Material, Product, ProductImage, Revision
 from app.schemas.product import CATEGORY_OPTIONS, ProductIn, ProductOut, ProductUpdate, VerifyIn
 from app.services.assessment import carbon_assessment, rapu_assessment
-from app.services.materials import material_records, resolve_material, resolve_suggestion
+from app.services.materials import material_records, resolve_best_suggestion, resolve_material
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix='/api')
@@ -296,14 +296,21 @@ def analyze(product_id: int, image_id: int | None = Query(default=None, gt=0),
         result = AIProductSuggestion.model_validate(analyze_image(str(path), analysis_context)).model_dump(mode='json')
         suggestion_name = result.pop('suggested_material', None)
         suggestion_confidence = result.pop('material_confidence', 0)
-        mapping = resolve_suggestion(suggestion_name)
+        material_candidates = result.pop('material_candidates', [])
+        best_suggestion = resolve_best_suggestion(material_candidates, suggestion_name, suggestion_confidence)
+        mapping = best_suggestion['mapping'] if best_suggestion else None
+        best_confidence = best_suggestion['confidence'] if best_suggestion else 0
+        match_score = best_suggestion['match_score'] if best_suggestion else 0
         result['material_suggestion'] = {
-            'suggested_name': (mapping['material'] if mapping else suggestion_name),
+            'suggested_name': mapping['material'] if mapping else None,
+            'matched_input': best_suggestion['suggested_name'] if best_suggestion else None,
             'material': mapping['material'] if mapping else None,
             'material_id': mapping['material_id'] if mapping else None,
             'material_category': mapping['material_category'] if mapping else None,
-            'confidence': suggestion_confidence,
-            'status': ('suggested' if suggestion_confidence >= 0.6 else 'uncertain') if mapping else ('unresolved' if suggestion_name else 'unknown'),
+            'confidence': best_confidence,
+            'match_score': match_score,
+            'candidate_count': best_suggestion['candidate_count'] if best_suggestion else 0,
+            'status': 'suggested' if best_suggestion and best_confidence >= 0.6 and match_score >= 0.78 else ('uncertain' if best_suggestion else 'unknown'),
         }
         db.add(AIExtraction(product_id=product.id, payload=result, status='completed', model=settings.gemini_model))
         product.ai_status = 'completed'

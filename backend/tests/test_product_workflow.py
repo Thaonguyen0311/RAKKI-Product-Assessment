@@ -90,9 +90,9 @@ def test_analysis_resolves_material_suggestion_from_canonical_mapping(client, mo
     result = test_client.post(f"/api/products/{product['id']}/analyze?image_id={uploaded['uploaded'][0]['id']}")
     assert result.status_code == 200
     suggestion = result.json()['data']['material_suggestion']
-    assert suggestion == {'suggested_name': 'Crushed concrete', 'material': 'Crushed concrete',
+    assert suggestion == {'suggested_name': 'Crushed concrete', 'matched_input': ' Crushed   concrete ', 'material': 'Crushed concrete',
                           'material_id': 7000000187, 'material_category': 'Infra, yard, and foundations | Concrete',
-                          'confidence': 0.77, 'status': 'suggested'}
+                          'confidence': 0.77, 'match_score': 1.0, 'candidate_count': 1, 'status': 'suggested'}
 
 
 def test_primary_image_migration_preserves_and_marks_existing_rows():
