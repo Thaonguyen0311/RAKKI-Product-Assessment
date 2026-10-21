@@ -19,6 +19,7 @@ from app.models.product import AIExtraction, Assessment, EvidenceSource, Materia
 from app.schemas.product import CATEGORY_OPTIONS, ProductIn, ProductOut, ProductUpdate, VerifyIn
 from app.services.assessment import carbon_assessment, rapu_assessment
 from app.services.materials import material_records, resolve_best_suggestion, resolve_material
+from app.services.processes import PROCESS_OPTIONS, PROCESS_IDS
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix='/api')
@@ -41,7 +42,7 @@ def image_path(filename: str) -> Path:
 
 
 def snapshot(product: Product) -> dict:
-    result = {key: getattr(product, key) for key in ('id', 'name', 'category', 'location', 'completion_date', 'overall_condition', 'is_intact', 'is_clean', 'quantity', 'additional_notes', 'subtype', 'brand', 'sku', 'color', 'description', 'condition', 'material', 'material_id', 'material_category', 'material_verification', 'material_confidence', 'field_provenance', 'field_verification')}
+    result = {key: getattr(product, key) for key in ('id', 'name', 'category', 'location', 'completion_date', 'overall_condition', 'is_intact', 'is_clean', 'quantity', 'additional_notes', 'process', 'process_id', 'material', 'material_id', 'material_category', 'material_verification', 'material_confidence', 'field_provenance', 'field_verification')}
     for key, value in result.items():
         if isinstance(value, (date, datetime)):
             result[key] = value.isoformat()
@@ -64,6 +65,11 @@ def health(db: Session = Depends(get_db)):
         raise HTTPException(503, 'Database unavailable') from exc
 
 
+@router.get('/processes')
+def list_processes():
+    return [{'process': name, 'process_id': process_id} for name, process_id in PROCESS_OPTIONS]
+
+
 @router.get('/materials')
 def list_canonical_materials():
     return list(material_records())
@@ -73,12 +79,15 @@ def list_canonical_materials():
 def create_product(data: ProductIn, db: Session = Depends(get_db)):
     values = data.model_dump(exclude={'materials'})
     mapping = resolve_material(data.material)
-    values.update(material_id=mapping['material_id'] if mapping else None,
+    process = data.process or 'Others'
+    process_id = PROCESS_IDS[process]
+    values['process'] = process
+    values.update(process_id=process_id, material_id=mapping['material_id'] if mapping else None,
                   material_category=mapping['material_category'] if mapping else None,
                   material_verification='verified' if mapping else None,
                   material_confidence=None)
     product = Product(**values)
-    product.field_provenance = {key: 'user_input' for key in ('name', 'category', 'subtype', 'brand', 'sku', 'color', 'description', 'condition')}
+    product.field_provenance = {key: 'user_input' for key in ('name', 'category')}
     product.field_verification = {key: 'unverified' for key in product.field_provenance}
     product.materials = [Material(**material.model_dump()) for material in data.materials]
     db.add(product)
@@ -93,8 +102,8 @@ def list_products(response: Response, q: str | None = None, status: str | None =
                   db: Session = Depends(get_db)):
     stmt = select(Product)
     if q:
-        stmt = stmt.where(or_(Product.name.like(f'%{q}%'), Product.brand.like(f'%{q}%'),
-                              Product.sku.like(f'%{q}%'), Product.category.like(f'%{q}%')))
+        stmt = stmt.where(or_(Product.name.like(f'%{q}%'), Product.process.like(f'%{q}%'),
+                              Product.category.like(f'%{q}%')))
     if status:
         stmt = stmt.where(Product.assessment_status == status)
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
@@ -133,6 +142,8 @@ def update_product(product_id: int, data: ProductUpdate, db: Session = Depends(g
         raise HTTPException(404, 'Product not found')
     changes = data.model_dump(exclude_unset=True)
     materials = changes.pop('materials', None)
+    if 'process' in changes:
+        changes['process_id'] = PROCESS_IDS.get(changes['process'])
     if 'material' in changes:
         mapping = resolve_material(changes['material'])
         changes.update(material=mapping['material'] if mapping else None,
@@ -294,6 +305,9 @@ def analyze(product_id: int, image_id: int | None = Query(default=None, gt=0),
                     analysis_context[key] = context[key][:2000]
         from app.schemas.product import AIProductSuggestion
         result = AIProductSuggestion.model_validate(analyze_image(str(path), analysis_context)).model_dump(mode='json')
+        suggested_process = result.pop('suggested_process', None)
+        suggested_process = suggested_process if suggested_process in PROCESS_IDS else 'Others'
+        result['process_suggestion'] = {'process': suggested_process, 'process_id': PROCESS_IDS[suggested_process], 'status': 'suggested' if suggested_process != 'Others' else 'fallback'}
         suggestion_name = result.pop('suggested_material', None)
         suggestion_confidence = result.pop('material_confidence', 0)
         material_candidates = result.pop('material_candidates', [])
@@ -313,6 +327,16 @@ def analyze(product_id: int, image_id: int | None = Query(default=None, gt=0),
             'status': 'suggested' if best_suggestion and best_confidence >= 0.6 and match_score >= 0.78 else ('uncertain' if best_suggestion else 'unknown'),
         }
         db.add(AIExtraction(product_id=product.id, payload=result, status='completed', model=settings.gemini_model))
+        product.process = suggested_process
+        product.process_id = PROCESS_IDS[suggested_process]
+        product.field_provenance = {**(product.field_provenance or {}), 'process': 'ai_inference'}
+        product.field_verification = {**(product.field_verification or {}), 'process': 'unverified'}
+        if mapping:
+            product.material = mapping['material']
+            product.material_id = mapping['material_id']
+            product.material_category = mapping['material_category']
+            product.material_verification = 'unverified'
+            product.material_confidence = best_confidence
         product.ai_status = 'completed'
         db.commit()
         return {'status': 'completed', 'data': result, 'provenance': 'ai_inference', 'verification': 'unverified', 'image_id': image.id}
@@ -394,7 +418,7 @@ def export_products(db: Session = Depends(get_db)):
     workbook = Workbook()
     summary = workbook.active
     summary.title = 'Product summary'
-    summary.append(['ID', 'Name', 'Category', 'Subtype', 'Brand', 'SKU', 'Color', 'Condition', 'Material', 'Material ID', 'Material Category', 'Material verification', 'AI status', 'Assessment status'])
+    summary.append(['ID', 'Name', 'Category', 'Process', 'Process ID', 'Material', 'Material ID', 'Material Category', 'Material verification', 'AI status', 'Assessment status'])
     materials = workbook.create_sheet('Material composition')
     materials.append(['Product ID', 'Product', 'Material', 'Category', 'Percentage by weight', 'Provenance', 'Verification', 'Evidence'])
     sustainability = workbook.create_sheet('Sustainability')
@@ -402,7 +426,7 @@ def export_products(db: Session = Depends(get_db)):
     evidence = workbook.create_sheet('Evidence')
     evidence.append(['Product ID', 'Product', 'Image', 'Reference', 'Verification'])
     for product in products:
-        summary.append([safe_cell(getattr(product, key)) for key in ('id', 'name', 'category', 'subtype', 'brand', 'sku', 'color', 'condition', 'material', 'material_id', 'material_category', 'material_verification', 'ai_status', 'assessment_status')])
+        summary.append([safe_cell(getattr(product, key)) for key in ('id', 'name', 'category', 'process', 'process_id', 'material', 'material_id', 'material_category', 'material_verification', 'ai_status', 'assessment_status')])
         for material in product.materials:
             materials.append([safe_cell(value) for value in [product.id, product.name, material.name, material.category, material.percentage, material.provenance, material.verification, material.evidence]])
         for assessment in db.scalars(select(Assessment).where(Assessment.product_id == product.id)):

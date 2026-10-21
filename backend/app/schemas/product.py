@@ -32,12 +32,7 @@ class ProductIn(BaseModel):
     is_clean: bool | None = None
     quantity: int = Field(default=1, ge=1, strict=True)
     additional_notes: str | None = None
-    subtype: str | None = None
-    brand: str | None = None
-    sku: str | None = None
-    color: str | None = None
-    description: str | None = None
-    condition: str | None = None
+    process: str | None = None
     material: str | None = None
     materials: list[MaterialIn] = Field(default_factory=list)
 
@@ -47,6 +42,12 @@ class ProductIn(BaseModel):
         if value is not None and value not in CATEGORY_OPTIONS:
             raise ValueError('Select one of the available product categories')
         return value
+
+    @field_validator('process')
+    @classmethod
+    def validate_process(cls, value):
+        from app.services.processes import validated_process
+        return validated_process(value)
 
     @field_validator('material')
     @classmethod
@@ -68,8 +69,7 @@ class ProductUpdate(BaseModel):
     is_clean: bool | None = None
     quantity: int = Field(default=1, ge=1, strict=True)
     additional_notes: str | None = None
-    subtype: str | None = None; brand: str | None = None
-    sku: str | None = None; color: str | None = None; description: str | None = None; condition: str | None = None
+    process: str | None = None
     material: str | None = None
     materials: list[MaterialIn] | None = None
 
@@ -80,6 +80,12 @@ class ProductUpdate(BaseModel):
             raise ValueError('Product name may be empty but cannot be null')
         return value
 
+    @field_validator('process')
+    @classmethod
+    def validate_process(cls, value):
+        from app.services.processes import validated_process
+        return validated_process(value)
+
     @field_validator('material')
     @classmethod
     def validate_material(cls, value):
@@ -89,10 +95,10 @@ class ProductOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int; name: str; category: str | None; location: str | None; completion_date: object
     overall_condition: int | None; is_intact: bool | None; is_clean: bool | None; quantity: int; additional_notes: str | None
-    subtype: str | None; brand: str | None; sku: str | None
+    process: str | None = None; process_id: str | None = None
     material: str | None = None; material_id: int | None = None; material_category: str | None = None
     material_verification: str | None = None; material_confidence: float | None = None
-    color: str | None; description: str | None; condition: str | None; ai_status: str; assessment_status: str
+    ai_status: str; assessment_status: str
     field_provenance: dict[str, str] = Field(default_factory=dict); field_verification: dict[str, str] = Field(default_factory=dict)
     created_at: object; updated_at: object
 
@@ -112,7 +118,7 @@ class AIProductSuggestion(BaseModel):
     model_config = ConfigDict(extra='forbid')
     product_name: str | None = Field(default=None, max_length=180)
     category: str | None = None
-    additional_notes: str | None = None
+    suggested_process: str | None = None
     suggested_material: str | None = Field(default=None, max_length=180)
     material_confidence: float = Field(default=0, ge=0, le=1)
     material_candidates: list[AIMaterialCandidate] = Field(default_factory=list, max_length=5)
