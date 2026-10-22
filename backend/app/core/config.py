@@ -1,14 +1,17 @@
+import secrets
+
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
     app_env: str = 'development'
-    app_secret_key: str = ''
+    app_secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(48))
     cors_origins: str = 'http://localhost:5173'
     db_host: str = '127.0.0.1'
     db_port: int = 3306
     db_name: str = 'rakki'
-    db_user: str = 'rakki_app'
+    db_user: str = 'root'
     db_password: str = ''
     gemini_api_key: str = ''
     gemini_model: str = 'gemini-3.8-flash'

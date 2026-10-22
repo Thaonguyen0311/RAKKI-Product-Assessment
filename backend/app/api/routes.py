@@ -3,6 +3,7 @@ import json
 import logging
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, Response, UploadFile
@@ -20,9 +21,11 @@ from app.schemas.product import CATEGORY_OPTIONS, ProductIn, ProductOut, Product
 from app.services.assessment import carbon_assessment, rapu_assessment
 from app.services.materials import material_records, resolve_best_suggestion, resolve_material
 from app.services.processes import PROCESS_OPTIONS, PROCESS_IDS
+from app.services.auth import require_authenticated_user
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix='/api')
+
+router = APIRouter(prefix='/api', dependencies=[Depends(require_authenticated_user)])
 MAX_IMAGES_PER_REQUEST = 10
 ALLOWED_FORMATS = {'JPEG': ('jpg', 'image/jpeg'), 'PNG': ('png', 'image/png'), 'WEBP': ('webp', 'image/webp')}
 
@@ -46,6 +49,8 @@ def snapshot(product: Product) -> dict:
     for key, value in result.items():
         if isinstance(value, (date, datetime)):
             result[key] = value.isoformat()
+        elif isinstance(value, Decimal):
+            result[key] = float(value)
     return result
 
 
@@ -53,16 +58,6 @@ def image_data(image: ProductImage) -> dict:
     return {'id': image.id, 'filename': image.filename, 'content_type': image.content_type,
             'size_bytes': image.size_bytes, 'is_primary': image.is_primary,
             'url': f'/api/images/{image.id}'}
-
-
-@router.get('/health')
-def health(db: Session = Depends(get_db)):
-    try:
-        db.execute(select(1))
-        return {'status': 'ok', 'database': 'connected'}
-    except Exception as exc:
-        logger.exception('Database health check failed')
-        raise HTTPException(503, 'Database unavailable') from exc
 
 
 @router.get('/processes')

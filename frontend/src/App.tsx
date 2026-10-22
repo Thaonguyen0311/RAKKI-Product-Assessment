@@ -10,6 +10,43 @@ type Row = { product: Product; materials: Material[]; images: ImageRow[] };
 type FormValues = { name: string; category: string; process: string; location: string; overall_condition: string; is_intact: string; is_clean: string; quantity: string; additional_notes: string; material: string };
 type InventoryDraft = Pick<FormValues, 'name' | 'category' | 'process' | 'location' | 'overall_condition' | 'is_intact' | 'is_clean' | 'quantity' | 'additional_notes' | 'material'>;
 const API = import.meta.env.VITE_API_URL || '/api';
+type AuthUser = { id: number; username: string; is_active: boolean; created_at: string };
+let csrfToken = '';
+let onAuthenticationExpired = () => {};
+
+async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  const method = (init.method || 'GET').toUpperCase();
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && csrfToken) headers.set('X-CSRF-Token', csrfToken);
+  const response = await window.fetch(input, { ...init, headers, credentials: 'include' });
+  const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, window.location.href);
+  if (response.status === 401 && !url.pathname.endsWith('/auth/login') && !url.pathname.endsWith('/auth/me')) {
+    csrfToken = '';
+    onAuthenticationExpired();
+  }
+  return response;
+}
+
+function LoginPage({ onLogin }: { onLogin: (username: string, password: string) => Promise<string | null> }) {
+  const [username, setUsername] = useState(''), [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setError('');
+    if (!username.trim() || password.length < 5) { setError('Enter a username and a password of at least 5 characters.'); return; }
+    setBusy(true);
+    try { const message = await onLogin(username, password); if (message) setError(message); }
+    catch { setError('Could not reach RAKKI. Check the server and try again.'); }
+    finally { setBusy(false); }
+  }
+  return <main className="login-shell"><form className="login-card" onSubmit={submit}>
+    <div className="brand">RAKKI<span> / PRODUCT INTELLIGENCE</span></div>
+    <p className="eyebrow">SECURE WORKSPACE</p><h1>Welcome back.</h1><p className="login-copy">Sign in to access your product workspace.</p>
+    <label className="login-field">Username<input autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} maxLength={80} required autoFocus/></label>
+    <label className="login-field">Password<span className="password-input"><input type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} minLength={5} maxLength={256} required/><button type="button" className="password-toggle" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? 'Hide' : 'Show'}</button></span></label>
+    {error && <p className="notice error-notice" role="alert">{error}</p>}
+    <button className="login-submit" disabled={busy || !username.trim() || password.length < 5}>{busy ? 'Signing in…' : 'Sign in →'}</button>
+  </form></main>;
+}
 const LOCATION_OPTIONS = [ 'Office building, health center',  'Commercial building',  'Accommodation building',  'Education building, daycare centre',  'Apartment building',  'Small apartment building',  'Building for sports and physical exercise',  'Hospital',  'Other building, warehouse',  'Other building, indoor ice rink',  'Other building, transport and communications building',  'Other building, indoor swimming pool','others'];
 const CATEGORY_OPTIONS = ['Movable Furniture and Fixed Furnishings', 'Electrical', 'HVAC and Plumbing', 'Building Components and Materials', 'Other'];
 const CONDITION_OPTIONS = [{ value: '', label: 'Not Assessed' }, { value: '1', label: '1 - Very Poor' }, { value: '2', label: '2 - Poor' }, { value: '3', label: '3 - Fair' }, { value: '4', label: '4 - Good' }, { value: '5', label: '5 - Excellent' }];
@@ -48,7 +85,7 @@ function inventoryPayload(draft: InventoryDraft) {
   };
 }
 
-export default function App() {
+function Workspace({ onLogout }: { onLogout: () => void }) {
   const [rows, setRows] = useState<Row[]>([]), [q, setQ] = useState(''), [status, setStatus] = useState('');
   const [tab, setTab] = useState<'catalog' | 'inventory'>('catalog'), [page, setPage] = useState(0), [totalCount, setTotalCount] = useState(0), [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Row | null>(null), [form, setForm] = useState<FormValues>(emptyForm());
@@ -73,7 +110,7 @@ export default function App() {
       if (q) params.set('q', q);
       if (status) params.set('status', status);
       params.set('limit', '50'); params.set('offset', String(page * 50));
-      const response = await fetch(`${API}/products?${params}`);
+      const response = await apiFetch(`${API}/products?${params}`);
       if (!response.ok) throw new Error('API unavailable; start the backend and configure MySQL.');
       setRows(await response.json()); setTotalCount(Number(response.headers.get('X-Total-Count') || '0')); setError('');
     } catch (err) { setError(String(err)); }
@@ -81,8 +118,8 @@ export default function App() {
   }
   useEffect(() => { void load(); }, [q, status, page]);
   useEffect(() => {
-    fetch(`${API}/processes`).then(response => response.json()).then(setProcessOptions).catch(err => setError(String(err)));
-    fetch(`${API}/materials`).then(response => {
+    apiFetch(`${API}/processes`).then(response => response.json()).then(setProcessOptions).catch(err => setError(String(err)));
+    apiFetch(`${API}/materials`).then(response => {
       if (!response.ok) throw new Error('Could not load canonical materials');
       return response.json();
     }).then(setMaterialOptions).catch(err => setError(String(err)));
@@ -96,7 +133,7 @@ export default function App() {
     return () => urls.forEach(url => URL.revokeObjectURL(url));
   }, [pendingFiles]);
   async function loadDetail(id: number) {
-    const response = await fetch(`${API}/products/${id}`);
+    const response = await apiFetch(`${API}/products/${id}`);
     if (!response.ok) throw new Error('Could not load product details');
     const detail: Row = await response.json();
     const values: FormValues = {
@@ -131,7 +168,7 @@ export default function App() {
       const suffix = imageId ? `?image_id=${imageId}` : '';
       const current = formRef.current;
       const context = { product_name: current.name, category: current.category, location: current.location, additional_notes: current.additional_notes };
-      const response = await fetch(`${API}/products/${id}/analyze${suffix}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(context) });
+      const response = await apiFetch(`${API}/products/${id}/analyze${suffix}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(context) });
       const result = await response.json();
       if (!response.ok) throw new Error(errorText(result, 'Image analysis failed. Your image and product data are still saved.'));
       applySuggestions({ name: result.data?.product_name, category: result.data?.category, process: result.data?.process_suggestion?.process });
@@ -158,7 +195,7 @@ export default function App() {
     uploadLockRef.current = true;
     try {
       const body = new FormData(); files.forEach(item => body.append('files', item));
-      const response = await fetch(`${API}/products/${id}/images`, { method: 'POST', body });
+      const response = await apiFetch(`${API}/products/${id}/images`, { method: 'POST', body });
       const result = await response.json();
       if (!response.ok) throw new Error(errorText(result, 'Image upload failed'));
       if (result.errors?.length) setError(`Some images could not be uploaded: ${result.errors.join('; ')}`);
@@ -169,7 +206,7 @@ export default function App() {
     event.preventDefault(); setBusy(true); setError(''); setMessage('');
     try {
       if (!positiveInteger(createDraft.quantity)) throw new Error('Quantity must be a positive whole number.');
-      const response = await fetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(inventoryPayload(createDraft)) });
+      const response = await apiFetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(inventoryPayload(createDraft)) });
       const product = await response.json();
       if (!response.ok) throw new Error(errorText(product, 'Could not create product'));
       setCreateDraft(emptyInventoryDraft()); setCreateFiles([]);
@@ -187,7 +224,7 @@ export default function App() {
       if (!positiveInteger(form.quantity)) throw new Error('Quantity must be a positive whole number.');
       const payload = { ...inventoryPayload(form), material: form.material.trim() || null };
       if (form.material && !canonicalMaterial(form.material)) throw new Error('Choose a material from the canonical list.');
-      const response = await fetch(`${API}/products/${selected.product.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const response = await apiFetch(`${API}/products/${selected.product.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await response.json();
       if (!response.ok) throw new Error(errorText(result, 'Could not save product changes'));
       await loadDetail(selected.product.id); await load(); setSuggested(new Set()); setMaterialSuggestion(null); setMessage('Product changes saved. The selected material and its mapped ID and category were confirmed.');
@@ -206,13 +243,13 @@ export default function App() {
   }
   async function choosePrimary(image: ImageRow) {
     if (!selected) return;
-    const response = await fetch(`${API}/products/${selected.product.id}/images/${image.id}/primary`, { method: 'POST' });
+    const response = await apiFetch(`${API}/products/${selected.product.id}/images/${image.id}/primary`, { method: 'POST' });
     if (!response.ok) { setError('Could not select the primary image'); return; }
     await loadDetail(selected.product.id); await load();
   }
   async function removeImage(image: ImageRow) {
     if (!selected || !window.confirm('Remove this image from the product?')) return;
-    const response = await fetch(`${API}/products/${selected.product.id}/images/${image.id}`, { method: 'DELETE' });
+    const response = await apiFetch(`${API}/products/${selected.product.id}/images/${image.id}`, { method: 'DELETE' });
     if (!response.ok) { setError('Could not delete image'); return; }
     await loadDetail(selected.product.id); await load();
   }
@@ -220,7 +257,7 @@ export default function App() {
     if (!window.confirm(`Delete “${product.name}” and all its images, assessments, and revision history? This cannot be undone.`)) return;
     setBusy(true);
     try {
-      const response = await fetch(`${API}/products/${product.id}`, { method: 'DELETE' });
+      const response = await apiFetch(`${API}/products/${product.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error(errorText(await response.json(), 'Could not delete product'));
       if (selected?.product.id === product.id) setSelected(null);
       setMessage('Product deleted.'); await load();
@@ -241,7 +278,7 @@ export default function App() {
     setInventorySaving(true); setError(''); setMessage('');
     try {
       const url = inventoryAdding ? `${API}/products` : `${API}/products/${inventoryEditingId}`;
-      const response = await fetch(url, { method: inventoryAdding ? 'POST' : 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(inventoryPayload(inventoryDraft)) });
+      const response = await apiFetch(url, { method: inventoryAdding ? 'POST' : 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(inventoryPayload(inventoryDraft)) });
       const result = await response.json();
       if (!response.ok) throw new Error(errorText(result, 'Could not save inventory item'));
       setInventoryAdding(false); setInventoryEditingId(null); setMessage(inventoryAdding ? 'Inventory item created.' : 'Inventory item updated.'); await load();
@@ -272,7 +309,7 @@ export default function App() {
   return <main>
     <datalist id="process-options">{processOptions.map(option => <option key={option.process} value={option.process}/>)}</datalist>
     <datalist id="material-options">{materialOptions.map(option => <option key={option.material} value={option.material}/>)}</datalist>
-    <header><div className="brand">RAKKI<span> / PRODUCT INTELLIGENCE</span></div><nav className="tabs"><button className={tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}>Catalog</button><button className={tab === 'inventory' ? 'active' : ''} onClick={() => setTab('inventory')}>Inventory</button></nav><a href={`${API}/export.xlsx`}>Export Excel ↓</a></header>
+    <header><div className="brand">RAKKI<span> / PRODUCT INTELLIGENCE</span></div><nav className="tabs"><button className={tab === 'catalog' ? 'active' : ''} onClick={() => setTab('catalog')}>Catalog</button><button className={tab === 'inventory' ? 'active' : ''} onClick={() => setTab('inventory')}>Inventory</button></nav><a href={`${API}/export.xlsx`}>Export Excel ↓</a><button className="secondary logout-button" onClick={onLogout}>Log out</button></header>
     {error && <p className="notice error-notice">{error}</p>}{message && <p className="notice">{message}</p>}
     {tab === 'catalog' && <>
       <section className="intro"><p className="eyebrow">MATERIALS · EVIDENCE · IMPACT</p><h1>Know what your<br/><i>products are made of.</i></h1><p className="sub">A product assessment workspace with transparent evidence and careful AI assistance.</p></section>
@@ -354,8 +391,52 @@ export default function App() {
         <div className="analysis-row"><select value={analysisImage} onChange={e => setAnalysisImage(Number(e.target.value))} aria-label="Select image to analyze"><option value="">Choose image</option>{selected.images.map(image => <option key={image.id} value={image.id}>{image.is_primary ? 'Primary image' : `Image #${image.id}`}</option>)}</select><button onClick={() => selected && void analyze(selected.product.id, analysisImage ? Number(analysisImage) : undefined)} disabled={analysisBusy || !selected.images.length}>{analysisBusy ? 'Analyzing…' : 'Retry analysis'}</button></div>
       </div>
       <h3>Materials</h3>{selected.materials.length ? selected.materials.map(m => <p key={m.id || m.name}>{m.name} · {m.percentage ?? 'Unknown'}% · {m.verification}</p>) : <p>No composition evidence recorded.</p>}
-      <button className="secondary" onClick={async () => { const response = await fetch(`${API}/products/${selected.product.id}/assessments`, { method: 'POST' }); if (response.ok) setMessage('Assessment saved: carbon needs method and data; RAPU awaits authoritative methodology.'); else setError('Assessment failed'); }}>Assess sustainability</button>
+      <button className="secondary" onClick={async () => { const response = await apiFetch(`${API}/products/${selected.product.id}/assessments`, { method: 'POST' }); if (response.ok) setMessage('Assessment saved: carbon needs method and data; RAPU awaits authoritative methodology.'); else setError('Assessment failed'); }}>Assess sustainability</button>
       <button className="danger" onClick={() => void removeProduct(selected.product)} disabled={busy}>Delete product</button>
     </section></div>}
   </main>;
+}
+
+
+export default function App() {
+  const [authState, setAuthState] = useState<'checking' | 'anonymous' | 'authenticated'>('checking');
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    onAuthenticationExpired = () => {
+      if (mounted) { csrfToken = ''; setUser(null); setAuthState('anonymous'); }
+    };
+    apiFetch(`${API}/auth/me`).then(async response => {
+      if (!mounted) return;
+      if (!response.ok) { setUser(null); setAuthState('anonymous'); return; }
+      const result = await response.json();
+      csrfToken = result.csrf_token || '';
+      setUser(result.user); setAuthState('authenticated');
+    }).catch(() => { if (mounted) setAuthState('anonymous'); });
+    return () => { mounted = false; onAuthenticationExpired = () => {}; };
+  }, []);
+
+  async function login(username: string, password: string): Promise<string | null> {
+    const response = await apiFetch(`${API}/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const result = await response.json();
+    if (!response.ok) return response.status === 401 || response.status === 429
+      ? result.detail || 'Invalid username or password.'
+      : 'Sign in failed. Check the server and try again.';
+    csrfToken = result.csrf_token;
+    setUser(result.user); setAuthState('authenticated');
+    return null;
+  }
+
+  async function logout() {
+    try { await apiFetch(`${API}/auth/logout`, { method: 'POST' }); }
+    finally { csrfToken = ''; setUser(null); setAuthState('anonymous'); }
+  }
+
+  if (authState === 'checking') return <main className="login-shell"><p className="login-loading">Checking your RAKKI session…</p></main>;
+  if (authState !== 'authenticated' || !user) return <LoginPage onLogin={login}/>;
+  return <Workspace onLogout={() => void logout()}/>;
 }

@@ -109,22 +109,26 @@ class ProductOut(BaseModel):
 
 
 class AIMaterialCandidate(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    name: str = Field(min_length=1, max_length=180)
-    confidence: float = Field(ge=0, le=1)
+    model_config = ConfigDict(extra='ignore')
+    name: str = Field(min_length=1, max_length=180, validation_alias=AliasChoices('name', 'material', 'material_name'))
+    confidence: float = Field(default=0, ge=0, le=1)
 
 
 class AIProductSuggestion(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    # Gemini can include useful extras such as its former additional_notes key;
+    # only fields consumed by the application are validated and retained.
+    model_config = ConfigDict(extra='ignore')
     product_name: str | None = Field(default=None, max_length=180)
     category: str | None = None
     suggested_process: str | None = None
     suggested_material: str | None = Field(default=None, max_length=180)
     material_confidence: float = Field(default=0, ge=0, le=1)
     material_candidates: list[AIMaterialCandidate] = Field(default_factory=list, max_length=5)
-    overall_condition: None = None
-    is_intact: None = None
-    is_clean: None = None
+    # These values are ignored by the workflow, so tolerate Gemini returning
+    # an observation despite the prompt asking it to leave them null.
+    overall_condition: int | None = None
+    is_intact: bool | None = None
+    is_clean: bool | None = None
     confidence: float = Field(default=0, ge=0, le=1)
 
     @field_validator('category')

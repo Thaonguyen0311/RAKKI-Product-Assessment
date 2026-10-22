@@ -81,7 +81,7 @@ Docker settings are read from the root `.env`. `backend/.env.example` documents 
 
 ## Migrations and compatibility
 
-The existing `0001_initial` migration uses the model metadata to create tables. `0002_primary_product_image` adds the primary-image flag only when needed and marks the earliest existing image for each product as primary. `0003_product_field_provenance` stores AI/user provenance and verification status for product fields and marks legacy data unverified. `0004_inventory_fields` adds inventory details, derives legacy completion dates from record creation dates, and defaults legacy quantities to one. `0005_canonical_material` adds nullable material, numeric material ID, full category path, and confirmation fields without changing existing product rows. The 304-record source of truth is `backend/app/data/material_mapping.json`; `GET /api/materials` supplies the searchable frontend list, while Gemini returns a name suggestion that the API resolves through this mapping. Existing products and image records are retained. An empty product name is valid in the existing non-null name column, so it requires no separate migration. For local runs, apply migrations using `alembic upgrade head`; Docker runs the same command on backend startup. Back up MySQL and the image volume before production upgrades.
+The existing `0001_initial` through `0006_process_fields` migrations create and extend the product workspace. `0007_auth_users` adds the login account table and does not delete or reset product, analysis, image, or volume data. Docker runs `alembic upgrade head` on backend startup; to apply it explicitly, run `docker compose exec backend alembic upgrade head`. Back up MySQL and the image volume before production upgrades.
 
 ## Tests and build
 
@@ -105,6 +105,14 @@ The FastAPI `PATCH /api/products/{product_id}` route already used `ProductUpdate
 
 The Gemini service validates structured inventory and material candidate outputs, category options, and confidence. Material IDs and categories always come from the canonical backend mapping, and the model does not infer condition, cleanliness, intact status, or unsupported specifications.
 
-## Security note
+## Authentication and account setup
 
-This application still has no authentication or authorization and is intended for local or trusted internal development. Do not expose it publicly until access control and production rate limiting are added. Do not commit `.env` or publish the local development ports to an untrusted network.
+RAKKI uses a shared workspace: every authenticated user can access the same product records. Browser sessions use a signed, HTTP-only cookie that expires after eight hours. Passwords are hashed with Argon2id; login attempts are rate limited in each backend process. Unsafe API requests require a CSRF token returned by `GET /api/auth/me`. In production, use HTTPS and set `APP_ENV=production` with a strong `APP_SECRET_KEY` and the exact HTTPS frontend origins in `CORS_ORIGINS`.
+
+Authentication requires the `0007_auth_users` migration. Docker applies migrations on backend startup without deleting or recreating existing product data or volumes. To create the first account after the backend is healthy, run from the project root:
+
+```powershell
+docker compose exec backend python -m app.cli create-user
+```
+
+The command prompts for a username and password; passwords are not echoed or stored in plaintext. There is no public registration endpoint. For local development without `APP_SECRET_KEY`, RAKKI generates a temporary process secret; sessions will be invalidated when that backend process restarts. Set a stable secret in `.env` if sessions should survive restarts. Never commit `.env` or expose development ports to untrusted networks.

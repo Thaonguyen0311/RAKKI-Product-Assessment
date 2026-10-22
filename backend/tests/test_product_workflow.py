@@ -17,6 +17,8 @@ from alembic.operations import Operations
 from app.db.session import Base, get_db
 from app.main import app
 from app.models.product import AIExtraction, Assessment, EvidenceSource, Material, Product, ProductImage, Revision
+from app.models.user import User
+from app.services.auth import hash_password
 from app.core.config import settings
 
 
@@ -36,6 +38,14 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, 'storage_dir', str(tmp_path / 'images'))
     app.dependency_overrides[get_db] = override_db
     with TestClient(app) as test_client:
+        with session_factory() as session:
+            session.add(User(username='workflow-admin', password_hash=hash_password('workflow-test-password-2026')))
+            session.commit()
+        login = test_client.post('/api/auth/login', json={
+            'username': 'workflow-admin', 'password': 'workflow-test-password-2026',
+        })
+        assert login.status_code == 200
+        test_client.headers.update({'X-CSRF-Token': login.json()['csrf_token']})
         yield test_client, session_factory, tmp_path / 'images'
     app.dependency_overrides.clear()
     Base.metadata.drop_all(engine)
@@ -171,7 +181,7 @@ def test_canonical_material_migration_adds_nullable_fields_without_losing_rows()
 def test_product_images_patch_and_delete(client):
     test_client, session_factory, storage = client
     response = test_client.post('/api/products', json={
-        'name': 'Jacket', 'brand': 'User brand',
+        'name': 'Jacket', 'additional_notes': 'User note',
         'materials': [{'name': 'Cotton', 'percentage': None}],
     })
     assert response.status_code == 201
@@ -195,11 +205,12 @@ def test_product_images_patch_and_delete(client):
     listing = listing_response.json()[0]
     assert next(image for image in listing['images'] if image['is_primary'])['id'] == uploaded[1]['id']
 
-    response = test_client.patch(f'/api/products/{product_id}', json={'name': 'Edited jacket', 'description': 'Reviewed by user'})
+    response = test_client.patch(f'/api/products/{product_id}', json={'name': 'Edited jacket', 'additional_notes': 'Reviewed by user'})
     assert response.status_code == 200
     assert response.json()['name'] == 'Edited jacket'
     detail = test_client.get(f'/api/products/{product_id}').json()
-    assert detail['product']['brand'] == 'User brand'
+    assert detail['product']['additional_notes'] == 'Reviewed by user'
+    assert 'brand' not in detail['product']
     assert len(test_client.get(f'/api/products/{product_id}/revisions').json()) == 1
 
     assert test_client.delete(f"/api/products/{product_id}/images/{uploaded[1]['id']}").status_code == 204
@@ -228,7 +239,7 @@ def test_product_images_patch_and_delete(client):
 
 def test_analysis_failure_keeps_uploaded_image_and_product(client, monkeypatch):
     test_client, _, _ = client
-    created_response = test_client.post('/api/products', json={'name': '', 'brand': 'Known brand'})
+    created_response = test_client.post('/api/products', json={'name': '', 'additional_notes': 'Known note'})
     assert created_response.status_code == 201
     created = created_response.json()
     product_id = created['id']
@@ -242,7 +253,7 @@ def test_analysis_failure_keeps_uploaded_image_and_product(client, monkeypatch):
     assert failed.status_code == 503
     assert test_client.get(f'/api/images/{image_id}').status_code == 200
     product = test_client.get(f'/api/products/{product_id}').json()['product']
-    assert product['name'] == '' and product['brand'] == 'Known brand'
+    assert product['name'] == '' and product['additional_notes'] == 'Known note'
     assert product['ai_status'] == 'failed'
 
 

@@ -1,4 +1,5 @@
 import json
+import logging
 import mimetypes
 from google import genai
 from google.genai import types
@@ -6,6 +7,8 @@ from app.core.config import settings
 from app.schemas.product import AIProductSuggestion
 from app.services.materials import material_records
 from app.services.processes import PROCESS_OPTIONS
+
+logger = logging.getLogger(__name__)
 
 def analyze_image(path: str, context: dict | None = None) -> dict:
     if not settings.gemini_api_key:
@@ -42,9 +45,16 @@ def analyze_image(path: str, context: dict | None = None) -> dict:
         raise ValueError('AI returned an invalid structured response. Please retry analysis.') from exc
     if not isinstance(data, dict):
         raise ValueError('AI returned an invalid structured response. Please retry analysis.')
+    candidates = data.get('material_candidates')
+    if candidates is None:
+        data['material_candidates'] = []
+    elif isinstance(candidates, list):
+        data['material_candidates'] = candidates[:5]
     try:
         result = AIProductSuggestion.model_validate(data).model_dump(mode='json')
     except Exception as exc:
+        details = exc.errors(include_input=False) if hasattr(exc, 'errors') else [{'type': type(exc).__name__}]
+        logger.warning('Gemini response validation failed: %s', details)
         raise ValueError('AI returned an unsupported or invalid inventory suggestion. Please retry analysis.') from exc
     for key in ('product_name', 'category'):
         if isinstance(result[key], str):
