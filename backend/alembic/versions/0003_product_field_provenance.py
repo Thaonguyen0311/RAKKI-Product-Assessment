@@ -25,7 +25,14 @@ def upgrade():
 
     bind = op.get_bind()
     products_table = sa.Table('products', sa.MetaData(), autoload_with=bind)
-    product_columns = ('id', *PRODUCT_FIELDS, 'field_provenance', 'field_verification')
+    # A fresh database is created from the current SQLAlchemy models by 0001,
+    # so it may not contain retired fields that older databases still have.
+    product_columns = (
+        'id',
+        *(name for name in PRODUCT_FIELDS if name in columns),
+        'field_provenance',
+        'field_verification',
+    )
     products = bind.execute(sa.select(*(products_table.c[name] for name in product_columns))).mappings().all()
     latest_extractions = {}
     for row in bind.execute(sa.text('SELECT product_id, payload FROM ai_extractions ORDER BY created_at, id')).mappings():
@@ -46,6 +53,8 @@ def upgrade():
             verification = json.loads(verification)
         extraction = latest_extractions.get(product['id'], {})
         for field in PRODUCT_FIELDS:
+            if field not in product:
+                continue
             value = product[field]
             if field not in provenance and value is not None:
                 provenance[field] = 'ai_inference' if extraction.get(field) == value else 'legacy'

@@ -30,11 +30,15 @@ services:
       DB_NAME: ${DB_NAME:-rakki}
       DB_USER: ${DB_USER:-rakki_app}
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the root .env file}
+      DB_SSL_CA: ${DB_SSL_CA:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-5}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
       STORAGE_DIR: /data/images
+      AZURE_STORAGE_ACCOUNT_URL: ${AZURE_STORAGE_ACCOUNT_URL:-}
+      AZURE_STORAGE_CONTAINER: ${AZURE_STORAGE_CONTAINER:-product-images}
     volumes:
       - uploaded_images:/data/images
     depends_on:

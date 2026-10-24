@@ -4,7 +4,6 @@ import logging
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from pathlib import Path
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
@@ -22,26 +21,13 @@ from app.services.assessment import carbon_assessment, rapu_assessment
 from app.services.materials import material_records, resolve_best_suggestion, resolve_material
 from app.services.processes import PROCESS_OPTIONS, PROCESS_IDS
 from app.services.auth import require_authenticated_user
+from app.services.storage import delete_image as delete_stored_image, get_image, image_exists, local_image_path, save_image
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/api', dependencies=[Depends(require_authenticated_user)])
 MAX_IMAGES_PER_REQUEST = 10
 ALLOWED_FORMATS = {'JPEG': ('jpg', 'image/jpeg'), 'PNG': ('png', 'image/png'), 'WEBP': ('webp', 'image/webp')}
-
-
-def storage_root() -> Path:
-    root = Path(settings.storage_dir).resolve()
-    root.mkdir(parents=True, exist_ok=True)
-    return root
-
-
-def image_path(filename: str) -> Path:
-    root = storage_root()
-    path = (root / filename).resolve()
-    if path.parent != root:
-        raise HTTPException(404, 'Image not found')
-    return path
 
 
 def snapshot(product: Product) -> dict:
@@ -188,9 +174,8 @@ async def persist_upload(product: Product, upload: UploadFile, db: Session, prim
         return None, f'{upload.filename or "Image"}: upload a valid JPEG, PNG, or WebP image'
     extension, content_type = ALLOWED_FORMATS[image_format]
     filename = f'{uuid.uuid4().hex}.{extension}'
-    target = image_path(filename)
     try:
-        target.write_bytes(data)
+        save_image(filename, data, content_type)
         row = ProductImage(product_id=product.id, filename=filename, content_type=content_type,
                            size_bytes=len(data), is_primary=primary)
         db.add(row)
@@ -200,7 +185,7 @@ async def persist_upload(product: Product, upload: UploadFile, db: Session, prim
         return image_data(row), None
     except Exception:
         db.rollback()
-        target.unlink(missing_ok=True)
+        delete_stored_image(filename)
         logger.exception('Image upload persistence failed for product %s', product.id)
         return None, f'{upload.filename or "Image"}: could not save image'
 
@@ -236,10 +221,10 @@ def serve_image(image_id: int, db: Session = Depends(get_db)):
     image = db.get(ProductImage, image_id)
     if not image:
         raise HTTPException(404, 'Image not found')
-    path = image_path(image.filename)
-    if not path.is_file():
+    if not image_exists(image.filename):
         raise HTTPException(404, 'Image file is missing')
-    return FileResponse(path, media_type=image.content_type)
+    return Response(content=get_image(image.filename), media_type=image.content_type,
+                    headers={'Cache-Control': 'private, max-age=300', 'X-Content-Type-Options': 'nosniff'})
 
 
 @router.post('/products/{product_id}/images/{image_id}/primary')
@@ -266,7 +251,7 @@ def delete_image(product_id: int, image_id: int, db: Session = Depends(get_db)):
         if next_image:
             next_image.is_primary = True
     db.commit()
-    image_path(filename).unlink(missing_ok=True)
+    delete_stored_image(filename)
 
 
 @router.post('/products/{product_id}/analyze')
@@ -281,13 +266,12 @@ def analyze(product_id: int, image_id: int | None = Query(default=None, gt=0),
         raise HTTPException(404, 'Image not found for this product')
     if not image:
         raise HTTPException(400, 'Upload an image before analysis')
-    path = image_path(image.filename)
-    if not path.is_file():
+    if not image_exists(image.filename):
         raise HTTPException(404, 'Image file is missing; upload it again before analysis')
     product.ai_status = 'processing'
     db.commit()
     try:
-        from app.services.gemini import analyze_image
+        from app.services.gemini import analyze_image, analyze_image_bytes
         analysis_context = {
             'product_name': product.name or None,
             'category': product.category,
@@ -299,7 +283,11 @@ def analyze(product_id: int, image_id: int | None = Query(default=None, gt=0),
                 if key in context and isinstance(context[key], str):
                     analysis_context[key] = context[key][:2000]
         from app.schemas.product import AIProductSuggestion
-        result = AIProductSuggestion.model_validate(analyze_image(str(path), analysis_context)).model_dump(mode='json')
+        if settings.storage_provider == 'azure_blob':
+            suggestion = analyze_image_bytes(get_image(image.filename), image.content_type, analysis_context)
+        else:
+            suggestion = analyze_image(str(local_image_path(image.filename)), analysis_context)
+        result = AIProductSuggestion.model_validate(suggestion).model_dump(mode='json')
         suggested_process = result.pop('suggested_process', None)
         suggested_process = suggested_process if suggested_process in PROCESS_IDS else 'Others'
         result['process_suggestion'] = {'process': suggested_process, 'process_id': PROCESS_IDS[suggested_process], 'status': 'suggested' if suggested_process != 'Others' else 'fallback'}
@@ -362,7 +350,7 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
         logger.exception('Product deletion failed for product %s', product_id)
         raise HTTPException(500, 'Could not delete product') from exc
     for filename in filenames:
-        image_path(filename).unlink(missing_ok=True)
+        delete_stored_image(filename)
 
 
 @router.post('/products/{product_id}/assessments')
