@@ -126,7 +126,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
   }, []);
   useEffect(() => {
     // const urls = createFiles.map(file => URL.createObjectURL(file)); setCreatePreviews(urls);
-    const imageUrls = createFiles.map((file, index) => {
+    const urls = createFiles.map((file, index) => {
       console.log("Image index:", index);
       console.log("File value:", file);
       console.log("Is File:", file instanceof File);
