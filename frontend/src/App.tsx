@@ -125,7 +125,15 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
     }).then(setMaterialOptions).catch(err => setError(String(err)));
   }, []);
   useEffect(() => {
-    const urls = createFiles.map(file => URL.createObjectURL(file)); setCreatePreviews(urls);
+    // const urls = createFiles.map(file => URL.createObjectURL(file)); setCreatePreviews(urls);
+    const imageUrls = createFiles.map((file, index) => {
+      console.log("Image index:", index);
+      console.log("File value:", file);
+      console.log("Is File:", file instanceof File);
+      console.log("Is Blob:", file instanceof Blob);
+
+      return URL.createObjectURL(file);
+    });
     return () => urls.forEach(url => URL.revokeObjectURL(url));
   }, [createFiles]);
   useEffect(() => {
