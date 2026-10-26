@@ -124,6 +124,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
       return response.json();
     }).then(setMaterialOptions).catch(err => setError(String(err)));
   }, []);
+  console.log("RAKKI component rendered");
   useEffect(() => {
     // const urls = createFiles.map(file => URL.createObjectURL(file)); setCreatePreviews(urls);
     const urls = createFiles.map((file, index) => {
