@@ -18,10 +18,6 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
   } catch {
     return new Response('API proxy configuration is invalid', { status: 503 });
   }
-<<<<<<< HEAD
-=======
-
->>>>>>> bd03f4e8648db440a25786389c895c13b409d242
   if (backend.protocol !== 'https:') {
     return new Response('API proxy must use HTTPS', { status: 503 });
   }
