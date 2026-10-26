@@ -248,7 +248,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
       setCreateDraft(emptyInventoryDraft()); setCreateFiles([]);
       await loadDetail(product.id); await load();
       if (uploaded.length) await analyze(product.id, uploaded[0].id);
-    } catch (err) { setError(String(err)); await load(); }
+    } catch (err) { await load(); setError(String(err)); }
     finally { setBusy(false); }
   }
   async function save(event: FormEvent) {
