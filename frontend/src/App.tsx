@@ -343,7 +343,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
   return <main>
     <datalist id="process-options">{processOptions.map(option => <option key={option.process} value={option.process}/>)}</datalist>
     <datalist id="material-options">{materialOptions.map(option => <option key={option.material} value={option.material}/>)}</datalist>
-    <header><div className="brand">RAKKI<span> / PRODUCT INTELLIGENCE</span></div><nav className="tabs"><button className={tab === 'catalog' ? 'active' : ''} onClick={() => { setTab('catalog'); if (status === 'incomplete') setStatus(''); }}>Catalog</button><button className={tab === 'inventory' ? 'active' : ''} onClick={() => setTab('inventory')}>Inventory</button></nav><a href={`${API}/export.xlsx`}>Export Excel ↓</a><button className="secondary logout-button" onClick={onLogout}>Log out</button></header>
+    <header><div className="brand">RAKKI<span> / PRODUCT INTELLIGENCE</span></div><nav className="tabs"><button className={tab === 'catalog' ? 'active' : ''} onClick={() => { setTab('catalog'); setStatus(''); setPage(0); }}>Catalog</button><button className={tab === 'inventory' ? 'active' : ''} onClick={() => setTab('inventory')}>Inventory</button></nav><a href={`${API}/export.xlsx`}>Export Excel ↓</a><button className="secondary logout-button" onClick={onLogout}>Log out</button></header>
     {error && <p className="notice error-notice">{error}</p>}{message && <p className="notice">{message}</p>}
     {tab === 'catalog' && <>
       <section className="intro"><p className="eyebrow">MATERIALS · EVIDENCE · IMPACT</p><h1>Know what your<br/><i>products are made of.</i></h1><p className="sub">A product assessment workspace with transparent evidence and careful AI assistance.</p></section>
@@ -369,11 +369,11 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
         </div>
         <button disabled={busy || !positiveInteger(createDraft.quantity)}>{busy ? 'Working…' : 'Create product →'}</button>
       </form>
-      <section className="listHead"><div><label>YOUR CATALOG</label><h2>Products <small>{totalCount.toString().padStart(2, '0')}</small></h2></div><div className="filters"><select value={status} onChange={e => { setStatus(e.target.value); setPage(0); }} aria-label="Filter by assessment status"><option value="">All statuses</option><option value="complete">Complete</option></select><input className="search" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="Search name or process…"/></div></section>
+      <section className="listHead"><div><label>YOUR CATALOG</label><h2>Products <small>{totalCount.toString().padStart(2, '0')}</small></h2></div><div className="filters"><input className="search" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="Search name or process…"/></div></section>
       <div className="grid">{rows.map(row => { const primary = row.images.find(image => image.is_primary) || row.images[0]; return <article className="product-card" key={row.product.id}>
         <button className="card-open" onClick={() => { void loadDetail(row.product.id).catch(err => setError(String(err))); }} aria-label={`Open ${row.product.name || 'unnamed product'}`}>
           <div className="tile">{primary ? <img src={primary.url} alt={row.product.name || 'Product image'}/> : <div className="placeholder"><span>NO PRODUCT IMAGE</span><b>RAKKI</b></div>}<span className="category-tag">{row.product.category || 'PRODUCT'}</span><strong>{row.product.name || 'Unnamed product'}</strong></div>
-          <div className="row"><span>{row.product.process || 'Process not recorded'}</span><span className="pill">{row.product.assessment_status}</span></div>
+          <div className="row"><span>{row.product.process || 'Process not recorded'}</span></div>
         </button><button className="card-delete" onClick={() => void removeProduct(row.product)} disabled={busy}>Delete</button>
       </article>; })}</div>
       {loading && <p className="empty">Loading products…</p>}{rows.length === 0 && !loading && !error && <p className="empty">Your catalog is ready. Add a product to begin.</p>}
