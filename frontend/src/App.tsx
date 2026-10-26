@@ -121,12 +121,13 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<'catalog' | 'inventory'>('catalog'), [page, setPage] = useState(0), [totalCount, setTotalCount] = useState(0), [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Row | null>(null), [form, setForm] = useState<FormValues>(emptyForm());
   const [materialOptions, setMaterialOptions] = useState<CanonicalMaterial[]>([]), [processOptions, setProcessOptions] = useState<ProcessOption[]>([]), [materialSuggestion, setMaterialSuggestion] = useState<MaterialSuggestion | null>(null);
-  const [createDraft, setCreateDraft] = useState<InventoryDraft>(emptyInventoryDraft()), [createFiles, setCreateFiles] = useState<File[]>([]);
+  const [createFiles, setCreateFiles] = useState<File[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]), [analysisImage, setAnalysisImage] = useState<number | ''>('');
   const [createPreviews, setCreatePreviews] = useState<string[]>([]), [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
   const [busy, setBusy] = useState(false), [analysisBusy, setAnalysisBusy] = useState(false), [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(''), [error, setError] = useState('');
   const [createError, setCreateError] = useState('');
+  const [createMessage, setCreateMessage] = useState('');
   const [inventoryAdding, setInventoryAdding] = useState(false), [inventoryEditingId, setInventoryEditingId] = useState<number | null>(null), [inventoryDraft, setInventoryDraft] = useState<InventoryDraft>(emptyInventoryDraft()), [inventorySaving, setInventorySaving] = useState(false);
   const [suggested, setSuggested] = useState<Set<keyof FormValues>>(new Set());
   const formRef = useRef(form), touchedRef = useRef(new Set<keyof FormValues>());
@@ -237,19 +238,25 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
     } finally { uploadLockRef.current = false; }
   }
   async function create(event: FormEvent) {
-    event.preventDefault(); setBusy(true); setError(''); setCreateError(''); setMessage('');
+    event.preventDefault(); setBusy(true); setError(''); setCreateError(''); setCreateMessage('Preparing image…'); setMessage('');
     try {
-      if (!positiveInteger(createDraft.quantity)) throw new Error('Quantity must be a positive whole number.');
+      if (!createFiles.length) throw new Error('Upload or take a picture before creating a product.');
       const preparedFiles = await Promise.all(createFiles.map(prepareImageForUpload));
-      const response = await apiFetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(inventoryPayload(createDraft)) });
+      setCreateMessage('Creating product…');
+      const response = await apiFetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(inventoryPayload(emptyInventoryDraft())) });
       const product = await response.json();
       if (!response.ok) throw new Error(errorText(product, 'Could not create product'));
       let uploaded: ImageRow[] = [];
-      if (preparedFiles.length) uploaded = await uploadFiles(product.id, preparedFiles);
-      setCreateDraft(emptyInventoryDraft()); setCreateFiles([]);
+      if (preparedFiles.length) {
+        setCreateMessage('Uploading image…');
+        uploaded = await uploadFiles(product.id, preparedFiles);
+      }
+      setCreateFiles([]);
+      setCreateMessage(uploaded.length ? 'Analyzing product…' : 'Opening product…');
       await loadDetail(product.id); await load();
       if (uploaded.length) await analyze(product.id, uploaded[0].id);
-    } catch (err) { await load(); setCreateError(String(err)); }
+      setCreateMessage(uploaded.length ? 'Analysis attempt finished. Review the product details.' : 'Product created.');
+    } catch (err) { setCreateError(String(err)); console.error('Create product flow failed:', err); await load(); }
     finally { setBusy(false); }
   }
   async function save(event: FormEvent) {
@@ -321,7 +328,6 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
     finally { setInventorySaving(false); }
   }
   function cancelInventoryEdit() { setInventoryAdding(false); setInventoryEditingId(null); setInventoryDraft(emptyInventoryDraft()); }
-  function updateCreateDraft(key: keyof InventoryDraft, value: string) { setCreateDraft(current => ({ ...current, [key]: value })); }
   function updateField(key: keyof FormValues, value: string) {
     touchedRef.current = new Set(touchedRef.current).add(key);
     setSuggested(current => { const next = new Set(current); next.delete(key); return next; });
@@ -349,27 +355,16 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
     {tab === 'catalog' && <>
       <section className="intro"><p className="eyebrow">MATERIALS · EVIDENCE · IMPACT</p><h1>Know what your<br/><i>products are made of.</i></h1><p className="sub">A product assessment workspace with transparent evidence and careful AI assistance.</p></section>
       <form className="create inventory-create" onSubmit={create}>
-        <div className="create-fields">
-          <label className="field"><span>Location</span><select value={createDraft.location} onChange={e => updateCreateDraft('location', e.target.value)}><option value="">Choose location</option>{LOCATION_OPTIONS.map(option => <option key={option}>{option}</option>)}</select></label>
-          <label className="field"><span>Category</span><select value={createDraft.category} onChange={e => updateCreateDraft('category', e.target.value)}><option value="">Choose category</option>{CATEGORY_OPTIONS.map(option => <option key={option}>{option}</option>)}</select></label>
-          <label className="field"><span>Overall condition</span><select value={createDraft.overall_condition} onChange={e => updateCreateDraft('overall_condition', e.target.value)}>{CONDITION_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-          <label className="field"><span>Product is intact</span><select value={createDraft.is_intact} onChange={e => updateCreateDraft('is_intact', e.target.value)}>{ASSESSMENT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-          <label className="field"><span>Product is clean</span><select value={createDraft.is_clean} onChange={e => updateCreateDraft('is_clean', e.target.value)}>{ASSESSMENT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-          <label className="field"><span>Quantity</span><input type="number" min="1" step="1" value={createDraft.quantity} onChange={e => updateCreateDraft('quantity', e.target.value)} required/></label>
-          <label className="field"><span>Process</span><select value={createDraft.process} onChange={e => updateCreateDraft('process', e.target.value)}><option value="">AI will suggest after image upload</option>{processOptions.map(option => <option key={option.process}>{option.process}</option>)}</select></label>
-          <label className="field"><span>Process ID</span><input readOnly value={processId(createDraft.process) || ''}/></label>
-          <label className="field"><span>Material</span><input list="material-options" value={createDraft.material} onChange={e => { const value = e.target.value; updateCreateDraft('material', canonicalMaterial(value)?.material || value); }} placeholder="Search canonical materials"/></label>
-          <label className="field"><span>Material ID</span><input readOnly value={canonicalMaterial(createDraft.material)?.material_id ?? ''}/></label>
-          <label className="field"><span>Material Category</span><input readOnly value={canonicalMaterial(createDraft.material)?.material_category ?? ''}/></label>
-          <label className="field notes-field"><span>Additional notes</span><textarea rows={2} value={createDraft.additional_notes} onChange={e => updateCreateDraft('additional_notes', e.target.value)} placeholder="Dimensions, visible damage, accessories…"/></label>
+        <div className="create-actions">
           <label className="file-label">Upload a Picture<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e => filePicker(e.target.files, setCreateFiles)}/></label>
           <button type="button" className="secondary camera-button" onClick={() => createCameraRef.current?.click()} disabled={busy}>Take a Picture</button>
-          <input ref={createCameraRef} className="camera-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e => { if (e.target.files?.[0]) setCreateFiles(current => [...current, e.target.files![0]]); e.target.value = ''; }}/>
-          {createFiles.length > 0 && <small>{createFiles.map(file => `${file.name || 'Camera image'} · ${file.type || 'unknown type'} · ${(file.size / 1024 / 1024).toFixed(2)} MB`).join(' | ')}. Review, remove or retake before creating the product.</small>}
-          <div className="preview-strip">{createPreviews.map((url, index) => <div className="image-preview" key={url}><img src={url} alt={`Selected upload ${index + 1}`}/><button type="button" className="secondary" onClick={() => setCreateFiles(current => current.filter((_, itemIndex) => itemIndex !== index))}>Remove / retake</button></div>)}</div>
-          {createError && <p className="notice error-notice create-error" role="alert">{createError}</p>}
+          <input ref={createCameraRef} className="camera-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e => { if (e.target.files?.[0]) setCreateFiles([e.target.files[0]]); e.target.value = ''; }}/>
         </div>
-        <button disabled={busy || !positiveInteger(createDraft.quantity)}>{busy ? 'Working…' : 'Create product →'}</button>
+        {createFiles.length > 0 && <small className="create-file-info">{createFiles.map(file => `${file.name || 'Camera image'} · ${file.type || 'unknown type'} · ${(file.size / 1024 / 1024).toFixed(2)} MB`).join(' | ')}</small>}
+        <div className="preview-strip create-preview-strip">{createPreviews.map((url, index) => <img key={url} src={url} alt={`Selected upload ${index + 1}`}/>)}</div>
+        {createError && <p className="notice error-notice create-error" role="alert">{createError}</p>}
+        {createMessage && <p className="notice create-message" role="status">{createMessage}</p>}
+        <button disabled={busy}>{busy ? 'Working…' : 'Create product →'}</button>
       </form>
       <section className="listHead"><div><label>YOUR CATALOG</label><h2>Products <small>{totalCount.toString().padStart(2, '0')}</small></h2></div><div className="filters"><input className="search" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="Search name or process…"/></div></section>
       <div className="grid">{rows.map(row => { const primary = row.images.find(image => image.is_primary) || row.images[0]; return <article className="product-card" key={row.product.id}>
