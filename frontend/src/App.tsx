@@ -124,21 +124,14 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
       return response.json();
     }).then(setMaterialOptions).catch(err => setError(String(err)));
   }, []);
-  console.log("RAKKI component rendered");
   useEffect(() => {
-    // const urls = createFiles.map(file => URL.createObjectURL(file)); setCreatePreviews(urls);
-    const urls = createFiles.map((file, index) => {
-      console.log("Image index:", index);
-      console.log("File value:", file);
-      console.log("Is File:", file instanceof File);
-      console.log("Is Blob:", file instanceof Blob);
-
-      return URL.createObjectURL(file);
-    });
+    const urls = createFiles.filter((file): file is File => file instanceof Blob).map(file => URL.createObjectURL(file));
+    setCreatePreviews(urls);
     return () => urls.forEach(url => URL.revokeObjectURL(url));
   }, [createFiles]);
   useEffect(() => {
-    const urls = pendingFiles.map(file => URL.createObjectURL(file)); setPendingPreviews(urls);
+    const urls = pendingFiles.filter((file): file is File => file instanceof Blob).map(file => URL.createObjectURL(file));
+    setPendingPreviews(urls);
     return () => urls.forEach(url => URL.revokeObjectURL(url));
   }, [pendingFiles]);
   async function loadDetail(id: number) {
