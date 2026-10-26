@@ -251,11 +251,10 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
         setCreateMessage('Uploading image…');
         uploaded = await uploadFiles(product.id, preparedFiles);
       }
-      setCreateFiles([]);
       setCreateMessage(uploaded.length ? 'Analyzing product…' : 'Opening product…');
       await loadDetail(product.id); await load();
       if (uploaded.length) await analyze(product.id, uploaded[0].id);
-      setCreateMessage(uploaded.length ? 'Analysis attempt finished. Review the product details.' : 'Product created.');
+      setCreateFiles([]); setCreateError(''); setCreateMessage('');
     } catch (err) { setCreateError(String(err)); console.error('Create product flow failed:', err); await load(); }
     finally { setBusy(false); }
   }
@@ -269,7 +268,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
       const response = await apiFetch(`${API}/products/${selected.product.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await response.json();
       if (!response.ok) throw new Error(errorText(result, 'Could not save product changes'));
-      await loadDetail(selected.product.id); await load(); setSuggested(new Set()); setMaterialSuggestion(null); setMessage('Product changes saved. The selected material and its mapped ID and category were confirmed.');
+      await load(); setSelected(null); setSuggested(new Set()); setMaterialSuggestion(null); setMessage('Product changes saved.');
     } catch (err) { setError(String(err)); }
     finally { setSaving(false); }
   }
@@ -356,15 +355,15 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
       <section className="intro"><p className="eyebrow">MATERIALS · EVIDENCE · IMPACT</p><h1>Know what your<br/><i>products are made of.</i></h1><p className="sub">A product assessment workspace with transparent evidence and careful AI assistance.</p></section>
       <form className="create inventory-create" onSubmit={create}>
         <div className="create-actions">
-          <label className="file-label">Upload a Picture<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e => filePicker(e.target.files, setCreateFiles)}/></label>
-          <button type="button" className="secondary camera-button" onClick={() => createCameraRef.current?.click()} disabled={busy}>Take a Picture</button>
+          <label className="upload-button"><span>Choose a File</span><input className="file-picker-input" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e => filePicker(e.target.files, setCreateFiles)}/></label>
+          <button type="button" className="camera-button" onClick={() => createCameraRef.current?.click()} disabled={busy}>Take a Picture</button>
           <input ref={createCameraRef} className="camera-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e => { if (e.target.files?.[0]) setCreateFiles([e.target.files[0]]); e.target.value = ''; }}/>
         </div>
         {createFiles.length > 0 && <small className="create-file-info">{createFiles.map(file => `${file.name || 'Camera image'} · ${file.type || 'unknown type'} · ${(file.size / 1024 / 1024).toFixed(2)} MB`).join(' | ')}</small>}
         <div className="preview-strip create-preview-strip">{createPreviews.map((url, index) => <img key={url} src={url} alt={`Selected upload ${index + 1}`}/>)}</div>
         {createError && <p className="notice error-notice create-error" role="alert">{createError}</p>}
         {createMessage && <p className="notice create-message" role="status">{createMessage}</p>}
-        <button disabled={busy}>{busy ? 'Working…' : 'Create product →'}</button>
+        <button className="create-submit" disabled={busy} aria-busy={busy}>{busy ? 'Working…' : 'Create product →'}</button>
       </form>
       <section className="listHead"><div><label>YOUR CATALOG</label><h2>Products <small>{totalCount.toString().padStart(2, '0')}</small></h2></div><div className="filters"><input className="search" value={q} onChange={e => { setQ(e.target.value); setPage(0); }} placeholder="Search name or process…"/></div></section>
       <div className="grid">{rows.map(row => { const primary = row.images.find(image => image.is_primary) || row.images[0]; return <article className="product-card" key={row.product.id}>
