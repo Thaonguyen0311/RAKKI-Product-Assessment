@@ -126,6 +126,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
   const [createPreviews, setCreatePreviews] = useState<string[]>([]), [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
   const [busy, setBusy] = useState(false), [analysisBusy, setAnalysisBusy] = useState(false), [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(''), [error, setError] = useState('');
+  const [createError, setCreateError] = useState('');
   const [inventoryAdding, setInventoryAdding] = useState(false), [inventoryEditingId, setInventoryEditingId] = useState<number | null>(null), [inventoryDraft, setInventoryDraft] = useState<InventoryDraft>(emptyInventoryDraft()), [inventorySaving, setInventorySaving] = useState(false);
   const [suggested, setSuggested] = useState<Set<keyof FormValues>>(new Set());
   const formRef = useRef(form), touchedRef = useRef(new Set<keyof FormValues>());
@@ -236,7 +237,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
     } finally { uploadLockRef.current = false; }
   }
   async function create(event: FormEvent) {
-    event.preventDefault(); setBusy(true); setError(''); setMessage('');
+    event.preventDefault(); setBusy(true); setError(''); setCreateError(''); setMessage('');
     try {
       if (!positiveInteger(createDraft.quantity)) throw new Error('Quantity must be a positive whole number.');
       const preparedFiles = await Promise.all(createFiles.map(prepareImageForUpload));
@@ -248,7 +249,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
       setCreateDraft(emptyInventoryDraft()); setCreateFiles([]);
       await loadDetail(product.id); await load();
       if (uploaded.length) await analyze(product.id, uploaded[0].id);
-    } catch (err) { await load(); setError(String(err)); }
+    } catch (err) { await load(); setCreateError(String(err)); }
     finally { setBusy(false); }
   }
   async function save(event: FormEvent) {
@@ -364,8 +365,9 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
           <label className="file-label">Upload a Picture<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e => filePicker(e.target.files, setCreateFiles)}/></label>
           <button type="button" className="secondary camera-button" onClick={() => createCameraRef.current?.click()} disabled={busy}>Take a Picture</button>
           <input ref={createCameraRef} className="camera-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e => { if (e.target.files?.[0]) setCreateFiles(current => [...current, e.target.files![0]]); e.target.value = ''; }}/>
-          {createFiles.length > 0 && <small>{createFiles.length} image(s) selected. Review, remove or retake before creating the product.</small>}
+          {createFiles.length > 0 && <small>{createFiles.map(file => `${file.name || 'Camera image'} · ${file.type || 'unknown type'} · ${(file.size / 1024 / 1024).toFixed(2)} MB`).join(' | ')}. Review, remove or retake before creating the product.</small>}
           <div className="preview-strip">{createPreviews.map((url, index) => <div className="image-preview" key={url}><img src={url} alt={`Selected upload ${index + 1}`}/><button type="button" className="secondary" onClick={() => setCreateFiles(current => current.filter((_, itemIndex) => itemIndex !== index))}>Remove / retake</button></div>)}</div>
+          {createError && <p className="notice error-notice create-error" role="alert">{createError}</p>}
         </div>
         <button disabled={busy || !positiveInteger(createDraft.quantity)}>{busy ? 'Working…' : 'Create product →'}</button>
       </form>
