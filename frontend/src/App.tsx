@@ -10,6 +10,8 @@ type Row = { product: Product; materials: Material[]; images: ImageRow[] };
 type FormValues = { name: string; category: string; process: string; location: string; overall_condition: string; is_intact: string; is_clean: string; quantity: string; additional_notes: string; material: string };
 type InventoryDraft = Pick<FormValues, 'name' | 'category' | 'process' | 'location' | 'overall_condition' | 'is_intact' | 'is_clean' | 'quantity' | 'additional_notes' | 'material'>;
 const API = import.meta.env.VITE_API_URL || '/api';
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 type AuthUser = { id: number; username: string; is_active: boolean; created_at: string };
 let csrfToken = '';
 let onAuthenticationExpired = () => {};
@@ -83,6 +85,35 @@ function inventoryPayload(draft: InventoryDraft) {
     is_intact: boolValue(draft.is_intact), is_clean: boolValue(draft.is_clean), quantity: Number(draft.quantity),
     additional_notes: draft.additional_notes.trim() || null, material: draft.material.trim() || null, process: draft.process || 'Others',
   };
+}
+
+async function prepareImageForUpload(file: File): Promise<File> {
+  if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+    throw new Error(`${file.name || 'Captured image'} is ${file.type || 'an unsupported format'}. Please capture or choose a JPEG, PNG, or WebP image.`);
+  }
+  if (file.size <= MAX_UPLOAD_BYTES) return file;
+
+  let bitmap: ImageBitmap;
+  try { bitmap = await createImageBitmap(file); }
+  catch { throw new Error(`${file.name || 'Image'} is larger than 5 MB and could not be resized. Choose a smaller image.`); }
+  try {
+    const scale = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Could not prepare the captured image. Please choose a smaller JPEG, PNG, or WebP image.');
+    context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    for (const quality of [0.86, 0.72, 0.58, 0.45]) {
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+      if (blob && blob.size <= MAX_UPLOAD_BYTES) {
+        const name = (file.name || 'captured-image').replace(/\.[^.]+$/, '') + '.jpg';
+        return new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() });
+      }
+    }
+    throw new Error(`${file.name || 'Image'} is too large to reduce below 5 MB. Choose a smaller image.`);
+  } finally { bitmap.close(); }
 }
 
 function Workspace({ onLogout }: { onLogout: () => void }) {
@@ -208,12 +239,13 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
     event.preventDefault(); setBusy(true); setError(''); setMessage('');
     try {
       if (!positiveInteger(createDraft.quantity)) throw new Error('Quantity must be a positive whole number.');
+      const preparedFiles = await Promise.all(createFiles.map(prepareImageForUpload));
       const response = await apiFetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(inventoryPayload(createDraft)) });
       const product = await response.json();
       if (!response.ok) throw new Error(errorText(product, 'Could not create product'));
-      setCreateDraft(emptyInventoryDraft()); setCreateFiles([]);
       let uploaded: ImageRow[] = [];
-      if (createFiles.length) uploaded = await uploadFiles(product.id, createFiles);
+      if (preparedFiles.length) uploaded = await uploadFiles(product.id, preparedFiles);
+      setCreateDraft(emptyInventoryDraft()); setCreateFiles([]);
       await loadDetail(product.id); await load();
       if (uploaded.length) await analyze(product.id, uploaded[0].id);
     } catch (err) { setError(String(err)); await load(); }
@@ -331,7 +363,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
           <label className="field notes-field"><span>Additional notes</span><textarea rows={2} value={createDraft.additional_notes} onChange={e => updateCreateDraft('additional_notes', e.target.value)} placeholder="Dimensions, visible damage, accessories…"/></label>
           <label className="file-label">Upload a Picture<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e => filePicker(e.target.files, setCreateFiles)}/></label>
           <button type="button" className="secondary camera-button" onClick={() => createCameraRef.current?.click()} disabled={busy}>Take a Picture</button>
-          <input ref={createCameraRef} className="camera-input" type="file" accept="image/*" capture="environment" onChange={e => { if (e.target.files?.[0]) setCreateFiles(current => [...current, e.target.files![0]]); e.target.value = ''; }}/>
+          <input ref={createCameraRef} className="camera-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e => { if (e.target.files?.[0]) setCreateFiles(current => [...current, e.target.files![0]]); e.target.value = ''; }}/>
           {createFiles.length > 0 && <small>{createFiles.length} image(s) selected. Review, remove or retake before creating the product.</small>}
           <div className="preview-strip">{createPreviews.map((url, index) => <div className="image-preview" key={url}><img src={url} alt={`Selected upload ${index + 1}`}/><button type="button" className="secondary" onClick={() => setCreateFiles(current => current.filter((_, itemIndex) => itemIndex !== index))}>Remove / retake</button></div>)}</div>
         </div>
